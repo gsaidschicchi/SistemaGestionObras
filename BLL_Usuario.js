@@ -16,6 +16,24 @@ class BLL_Usuario {
     repo=this._repo(repo); const r=repo.buscarPorTelegramId(id); exigir(r,"USUARIO_NO_EXISTE","Usuario no encontrado."); const u=MAP_Usuario.FilaaBE(r.datos); exigir(u.EstadoAprobacion===Config.ESTADOS_APROBACION.PENDIENTE||u.EstadoAprobacion===Config.ESTADOS_APROBACION.PENDIENTE_REACTIVACION,"ESTADO_INVALIDO","El usuario no está pendiente de aprobación/reactivación.");
     if(u.EstadoAprobacion===Config.ESTADOS_APROBACION.PENDIENTE){u.RolAprobado=u.RolSolicitado;u.CodUsuario=this._generarCodUsuario(u.RolAprobado,repo);u.FechaAprobacion=ahora;u.AprobadoPor=codAprobador;} u.EstadoAprobacion=Config.ESTADOS_APROBACION.APROBADO;u.Activo=Config.ACTIVO.SI;u.UltimoAcceso=ahora;repo.actualizar(r.fila,MAP_Usuario.BEaFila(u));return u;
   }
+  static aprobarDesdeEdicionManual(id,estadoAnterior,codAprobador=Config.COD_ADMIN_SISTEMA,repo=null,ahora=new Date()){
+    repo=this._repo(repo);
+    exigir(estadoAnterior===Config.ESTADOS_APROBACION.PENDIENTE,"ESTADO_ANTERIOR_INVALIDO","La aprobación manual solo puede partir de una solicitud pendiente.");
+    const r=repo.buscarPorTelegramId(id);
+    exigir(r,"USUARIO_NO_EXISTE","Usuario no encontrado.");
+    const u=MAP_Usuario.FilaaBE(r.datos);
+    exigir(u.EstadoAprobacion===Config.ESTADOS_APROBACION.APROBADO,"ESTADO_INVALIDO","La hoja no contiene una aprobación válida.");
+    exigir(u.RolSolicitado&&this._rolesPublicos().includes(u.RolSolicitado),"ROL_NO_PERMITIDO","El rol solicitado no es válido.");
+    exigir(!u.RolAprobado&&!u.CodUsuario,"USUARIO_YA_APROBADO","El usuario ya posee rol o código asignado.");
+    u.RolAprobado=u.RolSolicitado;
+    u.CodUsuario=this._generarCodUsuario(u.RolAprobado,repo);
+    u.Activo=Config.ACTIVO.SI;
+    u.FechaAprobacion=ahora;
+    u.AprobadoPor=codAprobador;
+    u.UltimoAcceso=null;
+    repo.actualizar(r.fila,MAP_Usuario.BEaFila(u));
+    return u;
+  }
   static rechazarUsuario(id,codAprobador,repo=null,ahora=new Date()){repo=this._repo(repo);const r=repo.buscarPorTelegramId(id);exigir(r,"USUARIO_NO_EXISTE","Usuario no encontrado.");const u=MAP_Usuario.FilaaBE(r.datos);exigir(u.EstadoAprobacion===Config.ESTADOS_APROBACION.PENDIENTE,"ESTADO_INVALIDO","Solo se rechazan solicitudes pendientes.");u.EstadoAprobacion=Config.ESTADOS_APROBACION.RECHAZADO;u.Activo=Config.ACTIVO.NO;u.FechaAprobacion=ahora;u.AprobadoPor=codAprobador;repo.actualizar(r.fila,MAP_Usuario.BEaFila(u));return u;}
   static registrarAcceso(id,repo=null,ahora=new Date()){repo=this._repo(repo);const r=repo.buscarPorTelegramId(id);if(!r)return {estado:"NO_REGISTRADO",usuario:null};const u=MAP_Usuario.FilaaBE(r.datos);if(u.EstadoAprobacion===Config.ESTADOS_APROBACION.RECHAZADO)return {estado:"RECHAZADO",usuario:u};if(u.EstadoAprobacion===Config.ESTADOS_APROBACION.PENDIENTE)return {estado:"PENDIENTE",usuario:u};if(u.EstadoAprobacion===Config.ESTADOS_APROBACION.PENDIENTE_REACTIVACION)return {estado:"PENDIENTE_REACTIVACION",usuario:u};
     if(u.RolAprobado!==Config.ROLES.ADMINISTRADOR && u.UltimoAcceso && (ahora-new Date(u.UltimoAcceso))/86400000>=Config.DIAS_INACTIVIDAD){u.Activo=Config.ACTIVO.NO;u.EstadoAprobacion=Config.ESTADOS_APROBACION.PENDIENTE_REACTIVACION;repo.actualizar(r.fila,MAP_Usuario.BEaFila(u));return {estado:"PENDIENTE_REACTIVACION",usuario:u};}
