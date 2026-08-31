@@ -1,17 +1,22 @@
-# Sistema Gestión de Obras — Sprint 1 v0.2
+# Sistema Gestion Obras - Sprint 1 v0.4
 
-Estructura reorganizada con criterio **1 clase/componente = 1 archivo**.
+Corrección de integración Telegram / Apps Script.
 
-## Importante al integrar
-- **No reemplazar** tu carpeta `.git`.
-- **No reemplazar** tu `.clasp.json`.
-- `appsscript.json` es idéntico al manifest original del proyecto al momento de generar esta versión.
-- Copiar/reemplazar los `.js`, `README.md` y `appsscript.json` dentro de la carpeta local vinculada por clasp.
+Cambios principales:
+- Mantiene appsscript.json en la raíz del proyecto.
+- Respuesta Telegram mediante el propio HTTP del webhook para evitar una llamada UrlFetch adicional.
+- Deduplicación de update_id con CacheService durante 6 horas.
+- No crea una fila de SESIONES_TELEGRAM por cada saludo de un usuario no registrado.
+- Cache interno de Spreadsheet/Sheet durante cada ejecución.
+- Inserciones con setValues en lugar de appendRow.
+- diagnosticoIntegracion() permite medir lectura de Sheets sin modificar datos.
 
-## Primeras funciones a ejecutar en Apps Script
-1. `setupSprint1()` — crea/verifica las hojas requeridas.
-2. `QA_CU00()` — test BLL del alta/habilitación de usuario.
-3. `QA_CU01()` — test BLL de supervisión/observaciones.
-4. `QA_Sprint1()` — corre CU00 + CU01.
+Prueba recomendada:
+1. clasp push
+2. Ejecutar QA_Sprint1()
+3. Publicar Nueva versión de la implementación web existente.
+4. En Telegram enviar "hola" una sola vez.
+5. Tocar "Dar de alta" una sola vez.
+6. Revisar Apps Script > Ejecuciones. El log [WEBHOOK] informa total_ms.
 
-Los QA utilizan `QA_Repo` en memoria y no escriben en las hojas productivas.
+Si sigue tardando decenas de segundos, ejecutar diagnosticoIntegracion() y revisar sus tiempos antes de avanzar con CU00.
