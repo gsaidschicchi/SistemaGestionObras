@@ -1,53 +1,8 @@
 // ======================================================
 // MAP_USUARIO.GS
-// Convierte datos entre la estructura de almacenamiento
-// y objetos BE_Usuario.
-// No contiene reglas de negocio ni accede a Google Sheets.
+// Traduce BE_Usuario <-> fila de almacenamiento.
 // ======================================================
-
 class MAP_Usuario {
-
-  // Convierte un objeto BE_Usuario en un array.
-  // El orden coincide con las columnas de la hoja USUARIOS.
-  static BEaFila(usuario) {
-
-    return [
-      usuario.TelegramId,
-      usuario.Nombre,
-      usuario.Apellido,
-      usuario.RolSolicitado,
-      usuario.RolAprobado,
-      usuario.CodUsuario,
-      usuario.EstadoAprobacion,
-      usuario.Activo,
-      usuario.FechaAlta,
-      usuario.FechaAprobacion,
-      usuario.AprobadoPor,
-      usuario.UltimoAcceso
-    ];
-
-  }
-
-
-  // Convierte una fila obtenida del almacenamiento
-  // nuevamente en un objeto BE_Usuario.
-  static FilaaBE(fila) {
-
-    return new BE_Usuario(
-      fila[0],   // TELEGRAM_ID
-      fila[1],   // NOMBRE
-      fila[2],   // APELLIDO
-      fila[3],   // ROL_SOLICITADO
-      fila[4],   // ROL_APROBADO
-      fila[5],   // COD_USUARIO
-      fila[6],   // ESTADO_APROBACION
-      fila[7],   // ACTIVO
-      fila[8],   // FECHA_ALTA
-      fila[9],   // FECHA_APROBACION
-      fila[10],  // APROBADO_POR
-      fila[11]   // ULTIMO_ACCESO
-    );
-
-  }
-
+  static BEaFila(u){ return [String(u.TelegramId),u.Nombre,u.Apellido,u.RolSolicitado,u.RolAprobado,u.CodUsuario,u.EstadoAprobacion,u.Activo,u.FechaAlta,u.FechaAprobacion,u.AprobadoPor,u.UltimoAcceso]; }
+  static FilaaBE(f){ return new BE_Usuario(String(f[0]),f[1],f[2],f[3],f[4]||null,f[5]||null,f[6]||null,f[7]||null,f[8]||null,f[9]||null,f[10]||null,f[11]||null); }
 }

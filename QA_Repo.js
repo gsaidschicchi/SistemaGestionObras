@@ -1,0 +1,7 @@
+// ======================================================
+// QA_REPO.JS
+// Repositorio en memoria para probar BLL sin tocar Sheets.
+// ======================================================
+class QA_Repo {
+  constructor(){this.rows=[];} buscarPorTelegramId(id){return this._first(f=>String(f[0])===String(id));} buscarPorCodUsuario(c){return this._first(f=>String(f[5])===String(c));} buscarPorCodigo(c){return this._first(f=>String(f[0]).toUpperCase()===String(c).toUpperCase());} buscarPorObra(c){return this._first(f=>String(f[0]).toUpperCase()===String(c).toUpperCase());} buscarPorId(id){return this._first(f=>String(f[0])===String(id));} buscarTexto(t){t=String(t).toUpperCase();return this._all(f=>String(f[0]).toUpperCase().includes(t));} listarPorEstado(e){return this._all(f=>f[3]===e);} listarActivasPorFamilia(fam){return this._all(f=>f[1]===fam&&f[5]==="ACTIVA");} listarPorObra(c,soloActivas=false){return this._all(f=>String(f[1]).toUpperCase()===String(c).toUpperCase()&&(!soloActivas||f[9]===Config.ESTADOS_REGISTRO.ACTIVA));} listarPorObservacion(id){return this._all(f=>String(f[1])===String(id));} listar(){return this.rows.map(x=>x.slice());} insertar(f){this.rows.push(f.slice());} actualizar(n,f){this.rows[n-2]=f.slice();} _first(p){for(let i=0;i<this.rows.length;i++)if(p(this.rows[i]))return{fila:i+2,datos:this.rows[i].slice()};return null;} _all(p){return this.rows.map((f,i)=>({fila:i+2,datos:f.slice()})).filter(x=>p(x.datos));}
+}

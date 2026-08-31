@@ -1,30 +1,9 @@
 // ======================================================
-// DATASOURCESHEETS.GS
-// Centraliza el acceso técnico al Google Spreadsheet.
-// Permite que los DAL trabajen con las hojas sin conocer
-// cómo se obtiene físicamente el archivo.
+// DATASOURCESHEETS.JS
+// Acceso técnico centralizado a Google Sheets.
 // ======================================================
-
 class DataSourceSheets {
-
-  // Devuelve el Spreadsheet asociado a este proyecto.
-  static obtenerSpreadsheet() {
-    return SpreadsheetApp.getActiveSpreadsheet();
-  }
-
-
-  // Devuelve una hoja según su nombre.
-  // Si no existe, genera un error técnico.
-  static obtenerHoja(nombreHoja) {
-
-    const spreadsheet = this.obtenerSpreadsheet();
-    const hoja = spreadsheet.getSheetByName(nombreHoja);
-
-    if (!hoja) {
-      throw new Error(`No existe la hoja: ${nombreHoja}`);
-    }
-
-    return hoja;
-  }
-
+  static obtenerSpreadsheet(){ return SpreadsheetApp.getActiveSpreadsheet(); }
+  static obtenerHoja(nombre){ const h=this.obtenerSpreadsheet().getSheetByName(nombre); if(!h) throw new Error(`No existe la hoja: ${nombre}`); return h; }
+  static asegurarHoja(nombre,headers){ const ss=this.obtenerSpreadsheet(); let h=ss.getSheetByName(nombre); if(!h) h=ss.insertSheet(nombre); if(h.getLastRow()===0) h.getRange(1,1,1,headers.length).setValues([headers]); return h; }
 }
