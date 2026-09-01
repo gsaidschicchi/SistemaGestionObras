@@ -26,6 +26,7 @@ class GUI_Supervision {
     if (estado === "SUP_SELECCIONAR_EN_CURSO") return this._seleccionarEnCurso(chatId, telegramId, texto, usuario);
     if (estado === "SUP_SELECCIONAR_FINALIZADA") return this._seleccionarFinalizada(chatId, telegramId, texto, usuario);
     if (estado === "SUP_OBRA_ACTIVA") return this._procesarObraActiva(chatId, telegramId, texto, usuario, sesion);
+    if (estado === "SUP_CONFIRMAR_FINALIZACION") return this._confirmarFinalizacion(chatId, telegramId, texto, usuario, sesion);
 
     if (estado === "OBS_TIPIFICACION") return this._seleccionarTipificacion(chatId, telegramId, texto, usuario, sesion);
     if (estado === "OBS_UBICACION") return this._recibirUbicacion(chatId, telegramId, texto, usuario, sesion, mensaje);
@@ -142,7 +143,7 @@ class GUI_Supervision {
     if (opcion === "VER OBSERVACIONES") return this._mostrarObservaciones(chatId, telegramId, usuario, codigoObra);
 
     if (opcion === "FINALIZAR SUPERVISION") {
-      return TelegramService.enviarMensaje(chatId, "La finalización de la supervisión se implementa en el siguiente bloque. La supervisión actual sigue <b>EN CURSO</b>.", this._tecladoObraActiva());
+      return this._prepararFinalizacion(chatId, telegramId, usuario, codigoObra);
     }
 
     const supervision = codigoObra ? BLL_Supervision.obtener(codigoObra) : null;
@@ -151,6 +152,75 @@ class GUI_Supervision {
       return this._mostrarMenuPrincipalCompacto(chatId, usuario, "No pude recuperar la supervisión activa.");
     }
     return this._mostrarObraActiva(chatId, supervision);
+  }
+
+
+  static _prepararFinalizacion(chatId, telegramId, usuario, codigoObra) {
+    try {
+      const supervision = BLL_Supervision.obtener(codigoObra);
+      if (!supervision || supervision.Estado !== Config.ESTADOS_SUPERVISION.EN_CURSO) {
+        BLL_SesionTelegram.limpiar(telegramId);
+        return this._mostrarMenuPrincipalCompacto(chatId, usuario, "La supervisión ya no está en curso.");
+      }
+
+      const cantidadObservaciones = BLL_Observacion.listarActivas(codigoObra).length;
+      BLL_SesionTelegram.guardar(telegramId, "SUP_CONFIRMAR_FINALIZACION", codigoObra, { cantidadObservaciones: cantidadObservaciones });
+
+      const detalleObservaciones = cantidadObservaciones === 0
+        ? "No se registraron observaciones activas. La supervisión puede finalizar igualmente."
+        : `Observaciones activas: <b>${cantidadObservaciones}</b>`;
+
+      return TelegramService.enviarMensaje(
+        chatId,
+        `<b>Finalizar supervisión</b>\n\nObra: <b>${this._esc(codigoObra)}</b>\nInicio: ${this._fecha(supervision.FechaInicio)}\n${detalleObservaciones}\n\n¿Confirmás la finalización de la supervisión?`,
+        TelegramService.teclado([["Confirmar finalización"], ["Cancelar"]])
+      );
+    } catch (error) {
+      return TelegramService.enviarMensaje(chatId, this._mensajeError(error), this._tecladoObraActiva());
+    }
+  }
+
+  static _confirmarFinalizacion(chatId, telegramId, texto, usuario, sesion) {
+    const opcion = this._normalizar(texto);
+    const codigoObra = String(sesion.CodigoObraActiva || "").trim().toUpperCase();
+
+    if (opcion === "CANCELAR") {
+      BLL_SesionTelegram.guardar(telegramId, "SUP_OBRA_ACTIVA", codigoObra, {});
+      const supervision = BLL_Supervision.obtener(codigoObra);
+      return this._mostrarObraActiva(chatId, supervision, "Finalización cancelada.");
+    }
+
+    if (opcion !== "CONFIRMAR FINALIZACION") {
+      return TelegramService.enviarMensaje(
+        chatId,
+        "Seleccioná <b>Confirmar finalización</b> o <b>Cancelar</b>.",
+        TelegramService.teclado([["Confirmar finalización"], ["Cancelar"]])
+      );
+    }
+
+    try {
+      const cantidadObservaciones = BLL_Observacion.listarActivas(codigoObra).length;
+      const supervision = BLL_Supervision.finalizar(codigoObra, usuario.CodUsuario, true);
+      BLL_SesionTelegram.limpiar(telegramId);
+
+      const detalle = cantidadObservaciones === 0
+        ? "Resultado: <b>recorrida sin observaciones</b>"
+        : `Observaciones activas: <b>${cantidadObservaciones}</b>`;
+
+      return TelegramService.enviarMensaje(
+        chatId,
+        `<b>Supervisión finalizada correctamente.</b>\n\nObra: <b>${this._esc(supervision.CodigoObra)}</b>\nInicio: ${this._fecha(supervision.FechaInicio)}\nFinalización: ${this._fecha(supervision.FechaFinalizacion)}\n${detalle}`,
+        TelegramService.teclado([["Volver al menú"]])
+      );
+    } catch (error) {
+      const supervision = BLL_Supervision.obtener(codigoObra);
+      if (supervision && supervision.Estado === Config.ESTADOS_SUPERVISION.EN_CURSO) {
+        BLL_SesionTelegram.guardar(telegramId, "SUP_OBRA_ACTIVA", codigoObra, {});
+        return this._mostrarObraActiva(chatId, supervision, this._mensajeError(error));
+      }
+      BLL_SesionTelegram.limpiar(telegramId);
+      return this._mostrarMenuPrincipalCompacto(chatId, usuario, this._mensajeError(error));
+    }
   }
 
   static _iniciarObservacion(chatId, telegramId, usuario, codigoObra) {

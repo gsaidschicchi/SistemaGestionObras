@@ -1,52 +1,21 @@
-# Sistema Gestion Obras - Sprint 1 v0.5.2
+# Sistema Gestión de Obras — Sprint 1 v0.5.5
 
-CU01 - Ver, editar y eliminar observaciones desde Telegram.
+## Bloque implementado
+Finalización de supervisión (CU01).
 
-Incluye lo validado en v0.5.1 y agrega:
-- Listado de observaciones ACTIVAS de la obra actual.
-- Detalle con tipificación, fecha, autor, ubicación y comentario.
-- Edición de tipificación, ubicación y comentario.
-- La edición conserva COD_USUARIO original y completa trazabilidad de modificación.
-- OTROS continúa exigiendo comentario también al editar.
-- Eliminación lógica con confirmación explícita.
-- Al eliminar una observación, sus EVIDENCIAS pasan a ELIMINADA; el archivo físico en Drive se conserva para trazabilidad.
-- Observaciones eliminadas dejan de aparecer en el listado operativo.
-- No se permite editar/eliminar si la supervisión está FINALIZADA.
+### Flujo Telegram
+- Desde una obra EN_CURSO se puede seleccionar `Finalizar supervisión`.
+- Antes de persistir se muestra un resumen con obra, fecha de inicio y cantidad de observaciones activas.
+- Si no existen observaciones activas, se informa explícitamente que puede finalizar igualmente.
+- La finalización requiere confirmación explícita.
+- `Cancelar` conserva la supervisión EN_CURSO y vuelve a la obra activa.
+- Al confirmar se registra `FINALIZADA`, `FECHA_FINALIZACION` y `COD_USUARIO_FINALIZACION`.
+- Luego de finalizar se limpia la obra activa de la sesión.
+- Las supervisiones finalizadas continúan disponibles desde `Supervisiones finalizadas` en modo consulta.
+- La generación de PDF queda separada para el siguiente bloque.
 
-QA:
-- CU00: 14 casos.
-- CU01: 16 casos.
-- QA_Sprint1 esperado: 30/30 OK.
+## QA
+CU01 incorpora 19 casos automáticos, incluyendo registro de fecha/usuario finalizador y prevención de doble finalización.
 
-Pendiente siguiente bloque:
-- Finalizar supervisión desde Telegram.
-- Consulta de observaciones en supervisiones finalizadas (solo lectura).
-- PDF consolidado.
-
-Prueba recomendada:
-1. Reemplazar archivos conservando .git y .clasp.json.
-2. clasp push.
-3. Ejecutar QA_Sprint1().
-4. Publicar nueva versión de la implementación web existente.
-5. Telegram: Supervisiones en curso > AD566AF > Ver observaciones.
-6. Abrir una observación, editar comentario y validar FECHA_ULT_MODIFICACION/COD_USUARIO_ULT_MODIFICACION.
-7. Editar ubicación o tipificación.
-8. Eliminar una observación y validar ESTADO=ELIMINADA en OBSERVACIONES y EVIDENCIAS.
-
-
-## Sprint 1 v0.5.3 - Ajustes de edición de observaciones
-- Telegram muestra nombre y apellido del autor, nunca el código interno de usuario.
-- Al cambiar una tipificación a OTROS se solicita nuevamente el comentario descriptivo.
-- Edición de observaciones permite agregar una o varias fotos nuevas.
-- El detalle muestra correctamente coordenadas o referencia manual.
-- La confirmación de eliminación muestra datos operativos de la observación y oculta detalles técnicos.
-- Fechas de modificación y eliminación se formatean con fecha y hora.
-
-## v0.5.4 - Buscador de obras con BigQuery
-- Reutiliza el proyecto BigQuery `bot-estado-obras`.
-- Dataset: `pm_obras`.
-- Tabla de búsqueda: `pm_obras_validas`.
-- La búsqueda normaliza mayúsculas y elimina espacios, guiones y caracteres no alfanuméricos.
-- Consulta por prefijo con `STARTS_WITH`, igual al buscador funcional del bot anterior.
-- La integración quedó separada por capas: GUI_Supervision -> BLL_Obra -> DAL_Obra -> DAL_BigQuery -> BigQuery, con MAP_Obra para convertir resultados a BE_Obra.
-- El catálogo local OBRAS se conserva para datos propios del sistema; si una obra no existe localmente, BLL_Obra puede resolverla desde BigQuery.
+## Base
+Construido sobre v0.5.4 estable con buscador de obras en BigQuery.
