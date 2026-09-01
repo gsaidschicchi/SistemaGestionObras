@@ -36,6 +36,18 @@ class GUI_Supervision {
     if (estado === "OBS_COMENTARIO") return this._recibirComentario(chatId, telegramId, texto, usuario, sesion);
     if (estado === "OBS_CONFIRMAR") return this._confirmarObservacion(chatId, telegramId, texto, usuario, sesion);
 
+    if (estado === "OBS_VER_SELECCIONAR") return this._seleccionarObservacion(chatId, telegramId, texto, usuario, sesion);
+    if (estado === "OBS_DETALLE") return this._procesarDetalleObservacion(chatId, telegramId, texto, usuario, sesion);
+    if (estado === "OBS_EDIT_MENU") return this._procesarMenuEdicion(chatId, telegramId, texto, usuario, sesion);
+    if (estado === "OBS_EDIT_TIPIFICACION") return this._editarTipificacion(chatId, telegramId, texto, usuario, sesion);
+    if (estado === "OBS_EDIT_OTROS_COMENTARIO") return this._editarOtrosComentario(chatId, telegramId, texto, usuario, sesion);
+    if (estado === "OBS_EDIT_UBICACION") return this._editarUbicacion(chatId, telegramId, texto, usuario, sesion, mensaje);
+    if (estado === "OBS_EDIT_REFERENCIA") return this._editarReferencia(chatId, telegramId, texto, usuario, sesion);
+    if (estado === "OBS_EDIT_COMENTARIO") return this._editarComentario(chatId, telegramId, texto, usuario, sesion);
+    if (estado === "OBS_EDIT_FOTO") return this._recibirFotoEdicion(chatId, telegramId, texto, usuario, sesion, mensaje);
+    if (estado === "OBS_EDIT_FOTO_ACCION") return this._procesarAccionFotoEdicion(chatId, telegramId, texto, usuario, sesion);
+    if (estado === "OBS_ELIMINAR_CONFIRMAR") return this._confirmarEliminarObservacion(chatId, telegramId, texto, usuario, sesion);
+
     BLL_SesionTelegram.limpiar(telegramId);
     return this._mostrarMenuPrincipalCompacto(chatId, usuario, "La conversación anterior no pudo recuperarse.");
   }
@@ -127,9 +139,10 @@ class GUI_Supervision {
     const codigoObra = String(sesion.CodigoObraActiva || "").trim().toUpperCase();
 
     if (opcion === "REPORTAR OBSERVACION") return this._iniciarObservacion(chatId, telegramId, usuario, codigoObra);
+    if (opcion === "VER OBSERVACIONES") return this._mostrarObservaciones(chatId, telegramId, usuario, codigoObra);
 
-    if (opcion === "VER OBSERVACIONES" || opcion === "FINALIZAR SUPERVISION") {
-      return TelegramService.enviarMensaje(chatId, "Ese bloque de CU01 lo implementamos en el siguiente paso. La supervisión actual sigue <b>EN CURSO</b>.", this._tecladoObraActiva());
+    if (opcion === "FINALIZAR SUPERVISION") {
+      return TelegramService.enviarMensaje(chatId, "La finalización de la supervisión se implementa en el siguiente bloque. La supervisión actual sigue <b>EN CURSO</b>.", this._tecladoObraActiva());
     }
 
     const supervision = codigoObra ? BLL_Supervision.obtener(codigoObra) : null;
@@ -345,6 +358,311 @@ class GUI_Supervision {
     }
   }
 
+
+  static _mostrarObservaciones(chatId, telegramId, usuario, codigoObra, mensajeEstado = "") {
+    try {
+      const observaciones = BLL_Observacion.listarActivas(codigoObra);
+      if (!observaciones.length) {
+        BLL_SesionTelegram.guardar(telegramId, "SUP_OBRA_ACTIVA", codigoObra, {});
+        const supervision = BLL_Supervision.obtener(codigoObra);
+        return this._mostrarObraActiva(chatId, supervision, mensajeEstado || "No hay observaciones activas para esta obra.");
+      }
+
+      const opciones = observaciones.map((o, i) => {
+        const tip = BLL_Tipificacion.obtener(o.IdTipificacion);
+        const descripcion = tip ? tip.Descripcion : o.IdTipificacion;
+        return {
+          id: o.IdObservacion,
+          label: `${String(i + 1).padStart(2, "0")} · ${descripcion} · ${this._fechaCorta(o.FechaHora)}`
+        };
+      });
+
+      BLL_SesionTelegram.guardar(telegramId, "OBS_VER_SELECCIONAR", codigoObra, { observaciones: opciones });
+      const encabezado = `${mensajeEstado ? `${mensajeEstado}\n\n` : ""}<b>Observaciones activas</b>\nObra: <b>${this._esc(codigoObra)}</b>\n\nSeleccioná una observación:`;
+      return TelegramService.enviarMensaje(
+        chatId,
+        encabezado,
+        TelegramService.teclado([...opciones.map(x => [x.label]), ["Volver a la obra"], ["Volver al menú"]])
+      );
+    } catch (error) {
+      return TelegramService.enviarMensaje(chatId, this._mensajeError(error), this._tecladoObraActiva());
+    }
+  }
+
+  static _seleccionarObservacion(chatId, telegramId, texto, usuario, sesion) {
+    const opcion = this._normalizar(texto);
+    const codigoObra = String(sesion.CodigoObraActiva || "").trim().toUpperCase();
+
+    if (opcion === "VOLVER A LA OBRA") {
+      BLL_SesionTelegram.guardar(telegramId, "SUP_OBRA_ACTIVA", codigoObra, {});
+      return this._mostrarObraActiva(chatId, BLL_Supervision.obtener(codigoObra));
+    }
+
+    const contexto = BLL_SesionTelegram.contexto(telegramId);
+    const opciones = Array.isArray(contexto.observaciones) ? contexto.observaciones : [];
+    const seleccionada = opciones.find(x => this._normalizar(x.label) === opcion);
+    if (!seleccionada) {
+      return TelegramService.enviarMensaje(chatId, "Seleccioná una de las observaciones disponibles.", TelegramService.teclado([...opciones.map(x => [x.label]), ["Volver a la obra"], ["Volver al menú"]]));
+    }
+
+    return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, seleccionada.id);
+  }
+
+  static _mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, idObservacion, mensajeEstado = "") {
+    const observacion = BLL_Observacion.obtener(idObservacion);
+    if (!observacion || observacion.Estado !== Config.ESTADOS_REGISTRO.ACTIVA) {
+      return this._mostrarObservaciones(chatId, telegramId, usuario, codigoObra, "La observación seleccionada ya no está activa.");
+    }
+
+    const tip = BLL_Tipificacion.obtener(observacion.IdTipificacion);
+    const descripcion = tip ? tip.Descripcion : observacion.IdTipificacion;
+    const ubicacion = this._ubicacionObservacion(observacion);
+    const comentario = observacion.Comentario ? this._esc(observacion.Comentario) : "Sin comentario";
+    const autor = this._nombreUsuario(observacion.CodUsuario);
+    const cantidadFotos = BLL_Observacion.contarEvidenciasActivas(observacion.IdObservacion);
+
+    BLL_SesionTelegram.guardar(telegramId, "OBS_DETALLE", codigoObra, { idObservacion: observacion.IdObservacion });
+
+    const mensaje = `${mensajeEstado ? `${mensajeEstado}\n\n` : ""}<b>Observación</b>\nID: <b>${this._esc(observacion.IdObservacion)}</b>\nTipificación: <b>${this._esc(descripcion)}</b>\nFecha: ${this._fecha(observacion.FechaHora)}\nAutor: <b>${this._esc(autor)}</b>\nUbicación: ${ubicacion}\nFotos: <b>${cantidadFotos}</b>\nComentario: ${comentario}`;
+    return TelegramService.enviarMensaje(
+      chatId,
+      mensaje,
+      TelegramService.teclado([["Editar"], ["Eliminar"], ["Volver a observaciones"], ["Volver a la obra"]])
+    );
+  }
+
+  static _procesarDetalleObservacion(chatId, telegramId, texto, usuario, sesion) {
+    const opcion = this._normalizar(texto);
+    const contexto = BLL_SesionTelegram.contexto(telegramId);
+    const codigoObra = String(sesion.CodigoObraActiva || "").trim().toUpperCase();
+    const id = contexto.idObservacion;
+
+    if (opcion === "VOLVER A OBSERVACIONES") return this._mostrarObservaciones(chatId, telegramId, usuario, codigoObra);
+    if (opcion === "VOLVER A LA OBRA") {
+      BLL_SesionTelegram.guardar(telegramId, "SUP_OBRA_ACTIVA", codigoObra, {});
+      return this._mostrarObraActiva(chatId, BLL_Supervision.obtener(codigoObra));
+    }
+    if (opcion === "EDITAR") return this._mostrarMenuEdicion(chatId, telegramId, codigoObra, id);
+    if (opcion === "ELIMINAR") {
+      const observacion = BLL_Observacion.obtener(id);
+      const tip = observacion ? BLL_Tipificacion.obtener(observacion.IdTipificacion) : null;
+      const descripcion = tip ? tip.Descripcion : (observacion ? observacion.IdTipificacion : "-");
+      const ubicacion = observacion ? this._ubicacionObservacion(observacion) : "-";
+      const comentario = observacion && observacion.Comentario ? this._esc(observacion.Comentario) : "Sin comentario";
+
+      BLL_SesionTelegram.guardar(telegramId, "OBS_ELIMINAR_CONFIRMAR", codigoObra, { idObservacion: id });
+      return TelegramService.enviarMensaje(
+        chatId,
+        `<b>Eliminar observación</b>\n\nID: <b>${this._esc(id)}</b>\nTipificación: <b>${this._esc(descripcion)}</b>\nUbicación: ${ubicacion}\nComentario: ${comentario}\n\n¿Confirmás eliminar esta observación?`,
+        TelegramService.teclado([["Confirmar eliminación"], ["Cancelar"]])
+      );
+    }
+
+    return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, id);
+  }
+
+  static _mostrarMenuEdicion(chatId, telegramId, codigoObra, idObservacion, mensajeEstado = "") {
+    BLL_SesionTelegram.guardar(telegramId, "OBS_EDIT_MENU", codigoObra, { idObservacion });
+    return TelegramService.enviarMensaje(
+      chatId,
+      `${mensajeEstado ? `${mensajeEstado}\n\n` : ""}<b>Editar observación</b>\n¿Qué querés modificar?`,
+      TelegramService.teclado([["Tipificación"], ["Ubicación"], ["Comentario"], ["Fotos"], ["Volver al detalle"]])
+    );
+  }
+
+  static _procesarMenuEdicion(chatId, telegramId, texto, usuario, sesion) {
+    const opcion = this._normalizar(texto);
+    const contexto = BLL_SesionTelegram.contexto(telegramId);
+    const codigoObra = String(sesion.CodigoObraActiva || "").trim().toUpperCase();
+    const id = contexto.idObservacion;
+
+    if (opcion === "VOLVER AL DETALLE") return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, id);
+
+    if (opcion === "TIPIFICACION") {
+      const obra = BLL_Obra.obtener(codigoObra);
+      const tips = BLL_Tipificacion.listarActivasPorFamilia(obra.Familia).map(t => ({ id: t.IdTipificacion, descripcion: t.Descripcion }));
+      BLL_SesionTelegram.guardar(telegramId, "OBS_EDIT_TIPIFICACION", codigoObra, { idObservacion: id, tipificaciones: tips });
+      return TelegramService.enviarMensaje(chatId, "Seleccioná la nueva tipificación:", TelegramService.teclado([...tips.map(x => [x.descripcion]), ["Volver al detalle"]]));
+    }
+
+    if (opcion === "UBICACION") {
+      BLL_SesionTelegram.guardar(telegramId, "OBS_EDIT_UBICACION", codigoObra, { idObservacion: id });
+      return TelegramService.enviarMensaje(
+        chatId,
+        "Compartí la nueva ubicación o ingresá una referencia manual.",
+        TelegramService.teclado([[{ text: "Compartir ubicación", request_location: true }], ["Ingresar referencia"], ["Volver al detalle"]])
+      );
+    }
+
+    if (opcion === "COMENTARIO") {
+      BLL_SesionTelegram.guardar(telegramId, "OBS_EDIT_COMENTARIO", codigoObra, { idObservacion: id });
+      return TelegramService.enviarMensaje(chatId, "Ingresá el nuevo comentario:", TelegramService.teclado([["Quitar comentario"], ["Volver al detalle"]]));
+    }
+
+    if (opcion === "FOTOS") {
+      BLL_SesionTelegram.guardar(telegramId, "OBS_EDIT_FOTO", codigoObra, { idObservacion: id, fotosNuevas: [] });
+      return TelegramService.enviarMensaje(chatId, "Enviá la foto que querés agregar a esta observación.", TelegramService.teclado([["Volver al detalle"]]));
+    }
+
+    return this._mostrarMenuEdicion(chatId, telegramId, codigoObra, id);
+  }
+
+  static _editarTipificacion(chatId, telegramId, texto, usuario, sesion) {
+    const opcion = this._normalizar(texto);
+    const contexto = BLL_SesionTelegram.contexto(telegramId);
+    const codigoObra = String(sesion.CodigoObraActiva || "").trim().toUpperCase();
+    if (opcion === "VOLVER AL DETALLE") return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, contexto.idObservacion);
+
+    const tips = Array.isArray(contexto.tipificaciones) ? contexto.tipificaciones : [];
+    const seleccionada = tips.find(x => this._normalizar(x.descripcion) === opcion);
+    if (!seleccionada) return TelegramService.enviarMensaje(chatId, "Seleccioná una de las tipificaciones disponibles.", TelegramService.teclado([...tips.map(x => [x.descripcion]), ["Volver al detalle"]]));
+
+    if (this._normalizar(seleccionada.descripcion) === "OTROS") {
+      BLL_SesionTelegram.guardar(telegramId, "OBS_EDIT_OTROS_COMENTARIO", codigoObra, { idObservacion: contexto.idObservacion, idTipificacion: seleccionada.id });
+      return TelegramService.enviarMensaje(chatId, "Seleccionaste <b>OTROS</b>. Ingresá el comentario que describe esta observación:", TelegramService.teclado([["Volver al detalle"]]));
+    }
+
+    try {
+      BLL_Observacion.editar(contexto.idObservacion, { IdTipificacion: seleccionada.id }, usuario.CodUsuario);
+      return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, contexto.idObservacion, "Tipificación actualizada.");
+    } catch (error) {
+      return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, contexto.idObservacion, this._mensajeError(error));
+    }
+  }
+
+  static _editarOtrosComentario(chatId, telegramId, texto, usuario, sesion) {
+    const opcion = this._normalizar(texto);
+    const contexto = BLL_SesionTelegram.contexto(telegramId);
+    const codigoObra = String(sesion.CodigoObraActiva || "").trim().toUpperCase();
+    if (opcion === "VOLVER AL DETALLE") return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, contexto.idObservacion);
+
+    const comentario = String(texto || "").trim();
+    if (comentario.length < 2) return TelegramService.enviarMensaje(chatId, "Ingresá un comentario válido.", TelegramService.teclado([["Volver al detalle"]]));
+
+    try {
+      BLL_Observacion.editar(contexto.idObservacion, { IdTipificacion: contexto.idTipificacion, Comentario: comentario }, usuario.CodUsuario);
+      return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, contexto.idObservacion, "Tipificación y comentario actualizados.");
+    } catch (error) {
+      return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, contexto.idObservacion, this._mensajeError(error));
+    }
+  }
+
+  static _editarUbicacion(chatId, telegramId, texto, usuario, sesion, mensaje) {
+    const contexto = BLL_SesionTelegram.contexto(telegramId);
+    const codigoObra = String(sesion.CodigoObraActiva || "").trim().toUpperCase();
+    const opcion = this._normalizar(texto);
+    if (opcion === "VOLVER AL DETALLE") return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, contexto.idObservacion);
+
+    if (mensaje && mensaje.location) {
+      try {
+        BLL_Observacion.editar(contexto.idObservacion, { Latitud: mensaje.location.latitude, Longitud: mensaje.location.longitude, ReferenciaUbicacion: "" }, usuario.CodUsuario);
+        return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, contexto.idObservacion, "Ubicación actualizada.");
+      } catch (error) {
+        return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, contexto.idObservacion, this._mensajeError(error));
+      }
+    }
+
+    if (opcion === "INGRESAR REFERENCIA") {
+      BLL_SesionTelegram.guardar(telegramId, "OBS_EDIT_REFERENCIA", codigoObra, { idObservacion: contexto.idObservacion });
+      return TelegramService.enviarMensaje(chatId, "Ingresá calle, altura o una referencia clara:", TelegramService.teclado([["Volver al detalle"]]));
+    }
+
+    return TelegramService.enviarMensaje(chatId, "Usá <b>Compartir ubicación</b> o <b>Ingresar referencia</b>.", TelegramService.teclado([[{ text: "Compartir ubicación", request_location: true }], ["Ingresar referencia"], ["Volver al detalle"]]));
+  }
+
+  static _editarReferencia(chatId, telegramId, texto, usuario, sesion) {
+    const contexto = BLL_SesionTelegram.contexto(telegramId);
+    const codigoObra = String(sesion.CodigoObraActiva || "").trim().toUpperCase();
+    if (this._normalizar(texto) === "VOLVER AL DETALLE") return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, contexto.idObservacion);
+    const referencia = String(texto || "").trim();
+    if (referencia.length < 3) return TelegramService.enviarMensaje(chatId, "Ingresá una referencia válida.", TelegramService.teclado([["Volver al detalle"]]));
+
+    try {
+      BLL_Observacion.editar(contexto.idObservacion, { Latitud: null, Longitud: null, ReferenciaUbicacion: referencia }, usuario.CodUsuario);
+      return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, contexto.idObservacion, "Ubicación actualizada.");
+    } catch (error) {
+      return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, contexto.idObservacion, this._mensajeError(error));
+    }
+  }
+
+  static _editarComentario(chatId, telegramId, texto, usuario, sesion) {
+    const contexto = BLL_SesionTelegram.contexto(telegramId);
+    const codigoObra = String(sesion.CodigoObraActiva || "").trim().toUpperCase();
+    const opcion = this._normalizar(texto);
+    if (opcion === "VOLVER AL DETALLE") return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, contexto.idObservacion);
+
+    const comentario = opcion === "QUITAR COMENTARIO" ? "" : String(texto || "").trim();
+    if (opcion !== "QUITAR COMENTARIO" && comentario.length < 2) return TelegramService.enviarMensaje(chatId, "Ingresá un comentario válido.", TelegramService.teclado([["Quitar comentario"], ["Volver al detalle"]]));
+
+    try {
+      BLL_Observacion.editar(contexto.idObservacion, { Comentario: comentario }, usuario.CodUsuario);
+      return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, contexto.idObservacion, comentario ? "Comentario actualizado." : "Comentario eliminado.");
+    } catch (error) {
+      return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, contexto.idObservacion, this._mensajeError(error));
+    }
+  }
+
+  static _recibirFotoEdicion(chatId, telegramId, texto, usuario, sesion, mensaje) {
+    const contexto = BLL_SesionTelegram.contexto(telegramId);
+    const codigoObra = String(sesion.CodigoObraActiva || "").trim().toUpperCase();
+    if (this._normalizar(texto) === "VOLVER AL DETALLE") return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, contexto.idObservacion);
+
+    const fotos = mensaje && Array.isArray(mensaje.photo) ? mensaje.photo : [];
+    if (!fotos.length) {
+      return TelegramService.enviarMensaje(chatId, "Enviá una foto para agregarla a la observación.", TelegramService.teclado([["Volver al detalle"]]));
+    }
+
+    const foto = fotos[fotos.length - 1];
+    contexto.fotosNuevas = Array.isArray(contexto.fotosNuevas) ? contexto.fotosNuevas : [];
+    contexto.fotosNuevas.push(foto.file_id);
+    BLL_SesionTelegram.guardar(telegramId, "OBS_EDIT_FOTO_ACCION", codigoObra, contexto);
+
+    return TelegramService.enviarMensaje(
+      chatId,
+      `Foto recibida. Fotos nuevas: <b>${contexto.fotosNuevas.length}</b>.`,
+      TelegramService.teclado([["Agregar otra foto"], ["Guardar fotos"], ["Volver al detalle"]])
+    );
+  }
+
+  static _procesarAccionFotoEdicion(chatId, telegramId, texto, usuario, sesion) {
+    const opcion = this._normalizar(texto);
+    const contexto = BLL_SesionTelegram.contexto(telegramId);
+    const codigoObra = String(sesion.CodigoObraActiva || "").trim().toUpperCase();
+
+    if (opcion === "VOLVER AL DETALLE") return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, contexto.idObservacion);
+
+    if (opcion === "AGREGAR OTRA FOTO") {
+      BLL_SesionTelegram.guardar(telegramId, "OBS_EDIT_FOTO", codigoObra, contexto);
+      return TelegramService.enviarMensaje(chatId, "Enviá la siguiente foto.", TelegramService.teclado([["Volver al detalle"]]));
+    }
+
+    if (opcion === "GUARDAR FOTOS") {
+      try {
+        const cantidad = BLL_Observacion.agregarEvidencias(contexto.idObservacion, contexto.fotosNuevas || [], usuario.CodUsuario);
+        return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, contexto.idObservacion, `${cantidad} foto${cantidad === 1 ? "" : "s"} agregada${cantidad === 1 ? "" : "s"}.`);
+      } catch (error) {
+        return TelegramService.enviarMensaje(chatId, this._mensajeError(error), TelegramService.teclado([["Agregar otra foto"], ["Guardar fotos"], ["Volver al detalle"]]));
+      }
+    }
+
+    return TelegramService.enviarMensaje(chatId, "Seleccioná <b>Agregar otra foto</b>, <b>Guardar fotos</b> o <b>Volver al detalle</b>.", TelegramService.teclado([["Agregar otra foto"], ["Guardar fotos"], ["Volver al detalle"]]));
+  }
+
+  static _confirmarEliminarObservacion(chatId, telegramId, texto, usuario, sesion) {
+    const contexto = BLL_SesionTelegram.contexto(telegramId);
+    const codigoObra = String(sesion.CodigoObraActiva || "").trim().toUpperCase();
+    const opcion = this._normalizar(texto);
+    if (opcion === "CANCELAR" || opcion === "VOLVER AL DETALLE") return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, contexto.idObservacion);
+    if (opcion !== "CONFIRMAR ELIMINACION") return TelegramService.enviarMensaje(chatId, "Seleccioná <b>Confirmar eliminación</b> o <b>Cancelar</b>.", TelegramService.teclado([["Confirmar eliminación"], ["Cancelar"]]));
+
+    try {
+      BLL_Observacion.eliminar(contexto.idObservacion, usuario.CodUsuario);
+      return this._mostrarObservaciones(chatId, telegramId, usuario, codigoObra, "Observación eliminada correctamente.");
+    } catch (error) {
+      return this._mostrarDetalleObservacion(chatId, telegramId, usuario, codigoObra, contexto.idObservacion, this._mensajeError(error));
+    }
+  }
+
   static _mostrarSupervisionesEnCurso(chatId, telegramId, usuario) {
     const supervisiones = BLL_Supervision.listarEnCurso();
     if (!supervisiones.length) return this._mostrarMenuPrincipalCompacto(chatId, usuario, "No hay supervisiones en curso.");
@@ -434,10 +752,29 @@ class GUI_Supervision {
     return fecha ? Utilities.formatDate(new Date(fecha), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm") : "-";
   }
 
+  static _fechaCorta(fecha) {
+    return fecha ? Utilities.formatDate(new Date(fecha), Session.getScriptTimeZone(), "dd/MM HH:mm") : "-";
+  }
+
   static _mostrarValor(valor) { return this._esc(String(valor || "").replace(/_/g, " ")); }
 
   static _esc(valor) {
     return String(valor == null ? "" : valor).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  static _ubicacionObservacion(observacion) {
+    const lat = observacion ? observacion.Latitud : null;
+    const lon = observacion ? observacion.Longitud : null;
+    const tieneLat = lat !== null && lat !== undefined && String(lat).trim() !== "";
+    const tieneLon = lon !== null && lon !== undefined && String(lon).trim() !== "";
+    if (tieneLat && tieneLon) return `${this._esc(lat)}, ${this._esc(lon)}`;
+    return this._esc(observacion && observacion.ReferenciaUbicacion ? observacion.ReferenciaUbicacion : "-");
+  }
+
+  static _nombreUsuario(codUsuario) {
+    const u = BLL_Usuario.obtenerUsuarioPorCodUsuario(codUsuario);
+    if (!u) return "Usuario";
+    return `${String(u.Nombre || "").trim()} ${String(u.Apellido || "").trim()}`.trim() || "Usuario";
   }
 
   static _mensajeError(error) {

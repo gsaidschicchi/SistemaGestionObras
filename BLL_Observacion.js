@@ -83,35 +83,142 @@ class BLL_Observacion {
     }
   }
 
+  static obtener(id, repo = null) {
+    repo = repo || DAL_Observacion;
+    const r = repo.buscarPorId(id);
+    return r ? MAP_Observacion.FilaaBE(r.datos) : null;
+  }
+
   static editar(id, cambios, codUsuario, deps = null, ahora = new Date()) {
-    deps = deps || { supervisiones: DAL_Supervision, observaciones: DAL_Observacion };
+    deps = deps || {
+      supervisiones: DAL_Supervision,
+      observaciones: DAL_Observacion,
+      tipificaciones: DAL_Tipificacion
+    };
+
     const r = deps.observaciones.buscarPorId(id);
     exigir(r, "OBS_NO_EXISTE", "Observación inexistente.");
     const o = MAP_Observacion.FilaaBE(r.datos);
     const rs = deps.supervisiones.buscarPorObra(o.CodigoObra);
     exigir(rs && MAP_Supervision.FilaaBE(rs.datos).Estado === Config.ESTADOS_SUPERVISION.EN_CURSO, "SUPERVISION_FINALIZADA", "No se puede editar una supervisión finalizada.");
     exigir(o.Estado === Config.ESTADOS_REGISTRO.ACTIVA, "OBS_ELIMINADA", "La observación está eliminada.");
+
     ["IdTipificacion", "Latitud", "Longitud", "ReferenciaUbicacion", "Comentario"].forEach(k => {
       if (cambios[k] !== undefined) o[k] = cambios[k];
     });
+
+    this._validarEdicion(o, deps.tipificaciones);
+
     o.FechaUltModificacion = ahora;
     o.CodUsuarioUltModificacion = codUsuario;
     deps.observaciones.actualizar(r.fila, MAP_Observacion.BEaFila(o));
     return o;
   }
 
+  static contarEvidenciasActivas(idObservacion, repo = null) {
+    repo = repo || DAL_Evidencia;
+    if (!repo || !repo.listarPorObservacion) return 0;
+    return repo.listarPorObservacion(idObservacion)
+      .map(r => MAP_Evidencia.FilaaBE(r.datos))
+      .filter(e => e.Estado === Config.ESTADOS_REGISTRO.ACTIVA).length;
+  }
+
+  static agregarEvidencias(idObservacion, telegramFileIds, codUsuario, ahora = new Date()) {
+    exigir(Array.isArray(telegramFileIds) && telegramFileIds.length > 0, "EVIDENCIA_REQUERIDA", "Debe adjuntar al menos una foto.");
+
+    const rObs = DAL_Observacion.buscarPorId(idObservacion);
+    exigir(rObs, "OBS_NO_EXISTE", "Observación inexistente.");
+    const observacion = MAP_Observacion.FilaaBE(rObs.datos);
+    const rSup = DAL_Supervision.buscarPorObra(observacion.CodigoObra);
+    exigir(rSup && MAP_Supervision.FilaaBE(rSup.datos).Estado === Config.ESTADOS_SUPERVISION.EN_CURSO, "SUPERVISION_FINALIZADA", "No se puede editar una supervisión finalizada.");
+    exigir(observacion.Estado === Config.ESTADOS_REGISTRO.ACTIVA, "OBS_ELIMINADA", "La observación está eliminada.");
+
+    const existentes = DAL_Evidencia.listarPorObservacion(idObservacion);
+    const inicioIndice = existentes.length + 1;
+    const archivosDrive = [];
+    const filasEvidencia = [];
+    const lock = LockService.getScriptLock();
+
+    try {
+      telegramFileIds.forEach((fileId, index) => {
+        const descargado = TelegramService.descargarArchivo(fileId);
+        const indice = inicioIndice + index;
+        const nombre = this._nombreFoto(observacion.CodigoObra, codUsuario, ahora, indice, descargado.filePath);
+        const archivo = DriveService.guardarArchivoObra(observacion.CodigoObra, descargado.blob, nombre);
+        archivosDrive.push({ archivo, nombre, indice });
+      });
+
+      lock.waitLock(10000);
+
+      const rObsActual = DAL_Observacion.buscarPorId(idObservacion);
+      exigir(rObsActual, "OBS_NO_EXISTE", "Observación inexistente.");
+      const obsActual = MAP_Observacion.FilaaBE(rObsActual.datos);
+      const rSupActual = DAL_Supervision.buscarPorObra(obsActual.CodigoObra);
+      exigir(rSupActual && MAP_Supervision.FilaaBE(rSupActual.datos).Estado === Config.ESTADOS_SUPERVISION.EN_CURSO, "SUPERVISION_FINALIZADA", "No se puede editar una supervisión finalizada.");
+      exigir(obsActual.Estado === Config.ESTADOS_REGISTRO.ACTIVA, "OBS_ELIMINADA", "La observación está eliminada.");
+
+      const existentesActuales = DAL_Evidencia.listarPorObservacion(idObservacion).length;
+      archivosDrive.forEach((x, index) => {
+        const indice = existentesActuales + index + 1;
+        const evidencia = new BE_Evidencia(
+          this._nuevoIdEvidencia(idObservacion, indice),
+          idObservacion,
+          "FOTO",
+          x.nombre,
+          x.archivo.getId(),
+          ahora,
+          Config.ESTADOS_REGISTRO.ACTIVA
+        );
+        filasEvidencia.push(DAL_Evidencia.insertar(MAP_Evidencia.BEaFila(evidencia)));
+      });
+
+      obsActual.FechaUltModificacion = ahora;
+      obsActual.CodUsuarioUltModificacion = codUsuario;
+      DAL_Observacion.actualizar(rObsActual.fila, MAP_Observacion.BEaFila(obsActual));
+
+      return archivosDrive.length;
+    } catch (error) {
+      try {
+        filasEvidencia.sort((a, b) => b - a).forEach(f => DAL_Evidencia.eliminarFisico(f));
+      } catch (rollbackError) {
+        console.error(`[OBS] Error compensando evidencias en Sheets: ${rollbackError.message}`);
+      }
+      archivosDrive.forEach(x => DriveService.eliminarArchivo(x.archivo.getId()));
+      throw error;
+    } finally {
+      try {
+        if (lock.hasLock()) lock.releaseLock();
+      } catch (e) {}
+    }
+  }
+
   static eliminar(id, codUsuario, deps = null, ahora = new Date()) {
-    deps = deps || { supervisiones: DAL_Supervision, observaciones: DAL_Observacion };
+    deps = deps || {
+      supervisiones: DAL_Supervision,
+      observaciones: DAL_Observacion,
+      evidencias: DAL_Evidencia
+    };
+
     const r = deps.observaciones.buscarPorId(id);
     exigir(r, "OBS_NO_EXISTE", "Observación inexistente.");
     const o = MAP_Observacion.FilaaBE(r.datos);
     const rs = deps.supervisiones.buscarPorObra(o.CodigoObra);
     exigir(rs && MAP_Supervision.FilaaBE(rs.datos).Estado === Config.ESTADOS_SUPERVISION.EN_CURSO, "SUPERVISION_FINALIZADA", "No se puede eliminar una supervisión finalizada.");
     exigir(o.Estado === Config.ESTADOS_REGISTRO.ACTIVA, "OBS_ELIMINADA", "La observación ya está eliminada.");
+
     o.Estado = Config.ESTADOS_REGISTRO.ELIMINADA;
     o.FechaEliminacion = ahora;
     o.CodUsuarioEliminacion = codUsuario;
     deps.observaciones.actualizar(r.fila, MAP_Observacion.BEaFila(o));
+
+    if (deps.evidencias && deps.evidencias.listarPorObservacion) {
+      deps.evidencias.listarPorObservacion(id).forEach(rEvidencia => {
+        const evidencia = MAP_Evidencia.FilaaBE(rEvidencia.datos);
+        evidencia.Estado = Config.ESTADOS_REGISTRO.ELIMINADA;
+        deps.evidencias.actualizar(rEvidencia.fila, MAP_Evidencia.BEaFila(evidencia));
+      });
+    }
+
     return o;
   }
 
@@ -140,6 +247,22 @@ class BLL_Observacion {
     }
 
     return t;
+  }
+
+
+  static _validarEdicion(o, tipificaciones) {
+    const tieneCoord = o.Latitud !== null && o.Latitud !== undefined && o.Longitud !== null && o.Longitud !== undefined;
+    exigir(tieneCoord || String(o.ReferenciaUbicacion || "").trim(), "UBICACION_REQUERIDA", "Debe indicar ubicación o referencia.");
+
+    if (tipificaciones) {
+      const rt = tipificaciones.buscarPorId(o.IdTipificacion);
+      exigir(rt, "TIPIFICACION_NO_EXISTE", "Tipificación inexistente.");
+      const t = MAP_Tipificacion.FilaaBE(rt.datos);
+      exigir(t.EstadoTipificacion === "ACTIVA", "TIPIFICACION_INACTIVA", "La tipificación no está activa.");
+      if (String(t.Descripcion || "").toUpperCase() === "OTROS") {
+        exigir(String(o.Comentario || "").trim(), "COMENTARIO_REQUERIDO", "OTROS requiere comentario.");
+      }
+    }
   }
 
   static _crearEntidad(datos, id, ahora) {

@@ -16,7 +16,10 @@ function setupSprint1() {
   DataSourceSheets.formatearColumnaFechaHora(Config.HOJAS.SUPERVISIONES, 2);
   DataSourceSheets.formatearColumnaFechaHora(Config.HOJAS.SUPERVISIONES, 3);
   DataSourceSheets.formatearColumnaFechaHora(Config.HOJAS.OBSERVACIONES, 5);
+  DataSourceSheets.formatearColumnaFechaHora(Config.HOJAS.OBSERVACIONES, 11);
+  DataSourceSheets.formatearColumnaFechaHora(Config.HOJAS.OBSERVACIONES, 13);
   DataSourceSheets.formatearColumnaFechaHora(Config.HOJAS.EVIDENCIAS, 6);
+  DataSourceSheets.formatearColumnaFechaHora(Config.HOJAS.SESIONES_TELEGRAM, 5);
 
   Logger.log("Sprint 1: estructura verificada e identificadores configurados como texto.");
 }

@@ -6,6 +6,7 @@ class BLL_Usuario {
   static _repo(repo){return repo||DAL_Usuario;}
   static _rolesPublicos(){return [Config.ROLES.SUPERVISOR,Config.ROLES.GERENTE,Config.ROLES.DIRECTOR];}
   static obtenerUsuarioPorTelegramId(id,repo=null){const r=this._repo(repo).buscarPorTelegramId(id); return r?MAP_Usuario.FilaaBE(r.datos):null;}
+  static obtenerUsuarioPorCodUsuario(cod,repo=null){const r=this._repo(repo).buscarPorCodUsuario(cod); return r?MAP_Usuario.FilaaBE(r.datos):null;}
   static solicitarAlta(id,nombre,apellido,rol,repo=null,ahora=new Date()){
     repo=this._repo(repo); exigir(id&&nombre&&apellido,"DATOS_INCOMPLETOS","Faltan datos obligatorios."); exigir(this._rolesPublicos().includes(rol),"ROL_NO_PERMITIDO","El rol solicitado no es válido.");
     const ex=repo.buscarPorTelegramId(id);
