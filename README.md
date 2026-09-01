@@ -15,3 +15,11 @@ Reporte PDF de supervisión finalizada.
 
 ## Migración necesaria
 Después de `clasp push`, ejecutar una vez `setupSprint1()` antes de probar Telegram. Esto agrega `COMENTARIO_GENERAL` a la hoja REPORTES sin perder las filas existentes.
+
+## Cierre Sprint 1 - Contratistas y OBRAS
+- CONTRATISTAS: ID_CONTRATISTA | LOCALIZADOR_DESTINO | NOMBRE_CONTRATISTA | ACTIVO.
+- Al iniciar una obra externa, se consulta pm_movimientos_raw por Motivo y ORED para obtener Localizador_Destino.
+- Si el localizador no existe, se crea CON### con NOMBRE_CONTRATISTA inicialmente igual al localizador y ACTIVO=SI.
+- OBRAS se persiste con ID_CONTRATISTA y FAMILIA.
+- El PDF resuelve y muestra NOMBRE_CONTRATISTA.
+- Ejecutar setupSprint1() una vez después del despliegue para migrar CONTRATISTAS de 3 a 4 columnas.

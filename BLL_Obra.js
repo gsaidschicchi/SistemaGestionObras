@@ -65,4 +65,31 @@ class BLL_Obra {
 
     return null;
   }
+  static asegurarLocal(obra, repo = null) {
+    repo = repo || DAL_Obra;
+    exigir(obra && obra.CodigoObra, "OBRA_REQUERIDA", "Debe existir una obra.");
+
+    const existente = repo.buscarPorCodigo(obra.CodigoObra);
+    if (existente) return MAP_Obra.FilaaBE(existente.datos);
+
+    let idContratista = obra.IdContratista || "";
+    if (!idContratista && typeof repo.buscarLocalizadorDestinoPorObra === "function") {
+      const normalizado = this.normalizarBusqueda(obra.CodigoObra);
+      const localizador = repo.buscarLocalizadorDestinoPorObra(normalizado);
+      if (localizador) {
+        const contratista = BLL_Contratista.resolverOCrear(localizador);
+        idContratista = contratista ? contratista.IdContratista : "";
+      }
+    }
+
+    const local = new BE_Obra(
+      obra.CodigoObra,
+      idContratista,
+      obra.Familia || this.determinarFamilia(obra.CodigoObra),
+      obra.Activa || Config.ACTIVO.SI
+    );
+    repo.insertar(MAP_Obra.BEaFila(local));
+    return local;
+  }
+
 }

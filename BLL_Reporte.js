@@ -9,6 +9,8 @@ class BLL_Reporte {
     exigir(supervision.Estado === Config.ESTADOS_SUPERVISION.FINALIZADA, "SUPERVISION_EN_CURSO", "Solo se reportan supervisiones finalizadas.");
 
     const obra = BLL_Obra.obtener(codigoObra) || new BE_Obra(codigoObra, "", BLL_Obra.determinarFamilia(codigoObra), Config.ACTIVO.SI);
+    const contratista = obra.IdContratista ? BLL_Contratista.obtenerPorId(obra.IdContratista) : null;
+    const nombreContratista = contratista ? contratista.NombreContratista : "-";
     const previos = DAL_Reporte.listarPorObra(codigoObra);
     let max = 0;
     previos.forEach(r => { max = Math.max(max, Number(MAP_Reporte.FilaaBE(r.datos).Version) || 0); });
@@ -28,7 +30,7 @@ class BLL_Reporte {
       return { observacion:o, tipificacion:tip, autor:autor || "Usuario", ubicacion, evidencias };
     });
 
-    const blob = PdfService.generar({ obra, supervision, comentarioGeneral, observaciones, nombreArchivo });
+    const blob = PdfService.generar({ obra, supervision, contratista:nombreContratista, comentarioGeneral, observaciones, nombreArchivo });
     let archivo = null;
     try {
       archivo = DriveService.guardarArchivoObra(codigoObra, blob, nombreArchivo);

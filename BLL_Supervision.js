@@ -34,6 +34,10 @@ class BLL_Supervision {
       );
     }
 
+    if (!depsRecibidas) {
+      obra = BLL_Obra.asegurarLocal(obra);
+    }
+
     const supervision = new BE_Supervision(
       codigoObra,
       ahora,

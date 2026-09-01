@@ -3,8 +3,16 @@
 // Crea/verifica hojas y protege identificadores como texto.
 // ======================================================
 function setupSprint1() {
-  // Migración v0.5.6: agrega COMENTARIO_GENERAL a REPORTES sin perder datos existentes.
   const ss = DataSourceSheets.obtenerSpreadsheet();
+
+  // Migración cierre Sprint 1: amplía CONTRATISTAS sin perder ID/NOMBRE/ACTIVO existentes.
+  const hc = ss.getSheetByName(Config.HOJAS.CONTRATISTAS);
+  if (hc && hc.getLastRow() > 0 && hc.getLastColumn() === 3 && hc.getRange(1, 2).getValue() === "NOMBRE") {
+    hc.insertColumnBefore(2);
+    hc.getRange(1, 1, 1, 4).setValues([["ID_CONTRATISTA","LOCALIZADOR_DESTINO","NOMBRE_CONTRATISTA","ACTIVO"]]);
+  }
+
+  // Migración v0.5.6: agrega COMENTARIO_GENERAL a REPORTES sin perder datos existentes.
   const hr = ss.getSheetByName(Config.HOJAS.REPORTES);
   if (hr && hr.getLastRow() > 0 && hr.getLastColumn() === 8 && hr.getRange(1, 6).getValue() === "NOMBRE_ARCHIVO") {
     hr.insertColumnBefore(6);
@@ -19,6 +27,8 @@ function setupSprint1() {
   DataSourceSheets.formatearColumnaTexto(Config.HOJAS.USUARIOS, 1);
   DataSourceSheets.formatearColumnaTexto(Config.HOJAS.USUARIOS, 6);
   DataSourceSheets.formatearColumnaTexto(Config.HOJAS.SESIONES_TELEGRAM, 1);
+  DataSourceSheets.formatearColumnaTexto(Config.HOJAS.CONTRATISTAS, 1);
+  DataSourceSheets.formatearColumnaTexto(Config.HOJAS.CONTRATISTAS, 2);
   DataSourceSheets.formatearColumnaTexto(Config.HOJAS.OBRAS, 1);
   DataSourceSheets.formatearColumnaTexto(Config.HOJAS.TIPIFICACIONES, 1);
   DataSourceSheets.formatearColumnaFechaHora(Config.HOJAS.SUPERVISIONES, 2);

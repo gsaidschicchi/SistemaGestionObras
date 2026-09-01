@@ -13,6 +13,7 @@ class PdfService {
 
     body.appendParagraph("");
     this._campo(body, "Obra", datos.obra.CodigoObra);
+    this._campo(body, "Contratista", this._mostrar(datos.contratista || "-"));
     this._campo(body, "Familia", this._mostrar(datos.obra.Familia));
     this._campo(body, "Estado", this._mostrar(datos.supervision.Estado));
     body.appendParagraph("");
