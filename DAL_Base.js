@@ -20,6 +20,10 @@ class DAL_Base {
     DataSourceSheets.obtenerHoja(nombreHoja).getRange(nroFila, 1, 1, fila.length).setValues([fila]);
   }
 
+  static eliminarFila(nombreHoja, nroFila) {
+    DataSourceSheets.obtenerHoja(nombreHoja).deleteRow(nroFila);
+  }
+
   static buscarPrimero(nombreHoja, columnas, pred) {
     const d = this.filas(nombreHoja, columnas);
     for (let i = 0; i < d.length; i++) {

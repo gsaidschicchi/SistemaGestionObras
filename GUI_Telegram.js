@@ -11,6 +11,6 @@ class GUI_Telegram {
     const telegramId = String(mensaje.from.id);
     const texto = String(mensaje.text || "").trim();
 
-    return GUI_Usuario.procesar(chatId, telegramId, texto);
+    return GUI_Usuario.procesar(chatId, telegramId, texto, mensaje);
   }
 }

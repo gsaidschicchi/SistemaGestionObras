@@ -1,30 +1,32 @@
-# Sistema Gestion Obras - Sprint 1 v0.5.0
+# Sistema Gestion Obras - Sprint 1 v0.5.1
 
-Inicio de CU01 - Supervisión de obra.
+CU01 - Reportar observación desde Telegram.
 
-Bloque implementado:
-- Menú operativo para SUPERVISOR y ADMINISTRADOR.
-- Inicio de nueva supervisión desde Telegram.
-- Búsqueda de obra por código completo o parcial.
-- Selección cuando existen varias coincidencias.
-- Confirmación explícita antes de crear la supervisión.
-- Alta de SUPERVISION EN_CURSO con FECHA_INICIO y COD_USUARIO_INICIO.
-- Recuperación de una supervisión EN_CURSO existente sin duplicarla.
-- Consulta simple de supervisiones en curso y finalizadas.
-- Sesión Telegram conserva la obra activa.
+Incluye:
+- Flujo de observación sobre la obra activa.
+- Tipificaciones activas filtradas por familia.
+- Ubicación compartida por Telegram o referencia manual.
+- Una o varias fotos obligatorias.
+- Comentario opcional; obligatorio para OTROS.
+- Resumen y confirmación explícita antes de persistir.
+- Antes de confirmar, las fotos permanecen solo como file_id en CONTEXTO_FLUJO.
+- Al confirmar, las fotos se descargan desde Telegram y se guardan en Drive.
+- Alta de OBSERVACIONES y EVIDENCIAS con compensación best-effort ante errores.
+- Carpeta Drive automática: Sistema Gestión y Supervisión de Obras / Supervisiones / <OBRA>.
+- Ajustes UX: saludo/rol solo en menú principal; valores visuales sin guiones bajos.
+- Formato fecha/hora visible en Sheets para supervisiones, observaciones y evidencias.
 
-Pendiente para los próximos bloques de CU01:
-- Reportar observación.
+Pendiente siguiente bloque:
 - Ver, editar y eliminar observaciones.
 - Finalizar supervisión desde Telegram.
-- Evidencias y PDF.
+- PDF consolidado.
 
 Prueba recomendada:
-1. clasp push
-2. Ejecutar QA_Sprint1()
-3. Publicar una nueva versión de la implementación web existente.
-4. En Telegram enviar Hola.
-5. Seleccionar Iniciar nueva supervisión.
-6. Buscar una obra existente.
-7. Confirmar el inicio.
-8. Verificar la nueva fila en SUPERVISIONES.
+1. Reemplazar archivos en la carpeta local conservando .git y .clasp.json.
+2. clasp push
+3. Ejecutar setupSprint1() una vez para aplicar formatos de fecha/hora.
+4. Ejecutar QA_Sprint1().
+5. Publicar una nueva versión de la implementación web existente.
+6. En Telegram recuperar AD566AF y seleccionar Reportar observación.
+7. Completar tipificación, ubicación, foto, comentario y confirmar.
+8. Verificar OBSERVACIONES, EVIDENCIAS y Drive.

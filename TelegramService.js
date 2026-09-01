@@ -1,7 +1,6 @@
 // ======================================================
 // TELEGRAMSERVICE.JS
 // Integración técnica con Telegram.
-// Envía las respuestas mediante Bot API.
 // ======================================================
 class TelegramService {
   static token() {
@@ -37,12 +36,54 @@ class TelegramService {
     return respuesta;
   }
 
+  static descargarArchivo(fileId) {
+    const token = this.token();
+    if (!token) throw new Error("Falta TELEGRAM_BOT_TOKEN en Script Properties.");
+
+    const info = UrlFetchApp.fetch(
+      `https://api.telegram.org/bot${token}/getFile?file_id=${encodeURIComponent(fileId)}`,
+      { muteHttpExceptions: true }
+    );
+
+    if (info.getResponseCode() !== 200) {
+      throw new Error("No se pudo obtener la evidencia desde Telegram.");
+    }
+
+    const json = JSON.parse(info.getContentText());
+    if (!json.ok || !json.result || !json.result.file_path) {
+      throw new Error("Telegram no devolvió la ruta de la evidencia.");
+    }
+
+    const filePath = json.result.file_path;
+    const archivo = UrlFetchApp.fetch(
+      `https://api.telegram.org/file/bot${token}/${filePath}`,
+      { muteHttpExceptions: true }
+    );
+
+    if (archivo.getResponseCode() !== 200) {
+      throw new Error("No se pudo descargar la evidencia desde Telegram.");
+    }
+
+    return {
+      blob: archivo.getBlob(),
+      filePath: filePath
+    };
+  }
+
   static teclado(filas) {
     return {
       keyboard: filas,
       resize_keyboard: true,
       one_time_keyboard: false
     };
+  }
+
+  static tecladoUbicacion() {
+    return this.teclado([
+      [{ text: "Compartir ubicación", request_location: true }],
+      ["Ingresar referencia"],
+      ["Cancelar observación"]
+    ]);
   }
 
   static quitarTeclado() {

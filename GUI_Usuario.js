@@ -3,7 +3,7 @@
 // Flujo conversacional CU00: alta y acceso de usuario.
 // ======================================================
 class GUI_Usuario {
-  static procesar(chatId, telegramId, texto) {
+  static procesar(chatId, telegramId, texto, mensaje = null) {
     const sesion = BLL_SesionTelegram.obtener(telegramId);
     const estadoConversacion = sesion ? String(sesion.EstadoConversacion || "") : "";
 
@@ -60,7 +60,8 @@ class GUI_Usuario {
           telegramId,
           texto,
           acceso.usuario,
-          sesion
+          sesion,
+          mensaje
         );
       }
 

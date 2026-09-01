@@ -40,4 +40,9 @@ class DataSourceSheets {
     const h = this.obtenerHoja(nombreHoja);
     h.getRange(1, columna, h.getMaxRows(), 1).setNumberFormat("@");
   }
+
+  static formatearColumnaFechaHora(nombreHoja, columna) {
+    const h = this.obtenerHoja(nombreHoja);
+    h.getRange(2, columna, Math.max(h.getMaxRows() - 1, 1), 1).setNumberFormat("dd/MM/yyyy HH:mm:ss");
+  }
 }
