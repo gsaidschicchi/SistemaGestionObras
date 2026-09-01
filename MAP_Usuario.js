@@ -1,5 +1,5 @@
 // ======================================================
-// MAP_USUARIO.GS
+// MAP_USUARIO.JS
 // Traduce BE_Usuario <-> fila de almacenamiento.
 // ======================================================
 class MAP_Usuario {

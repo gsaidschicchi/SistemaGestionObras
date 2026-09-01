@@ -1,5 +1,5 @@
 // ======================================================
-// SETUP_DATOS.GS
+// SETUP_DATOS.JS
 // Ayudas iniciales para preparar datos maestros.
 // ======================================================
 function cargarTipificacionesEjemplo(){

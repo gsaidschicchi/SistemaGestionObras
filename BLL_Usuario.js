@@ -1,5 +1,5 @@
 // ======================================================
-// BLL_USUARIO.GS
+// BLL_USUARIO.JS
 // Reglas de negocio CU00: alta, aprobación y actividad.
 // ======================================================
 class BLL_Usuario {

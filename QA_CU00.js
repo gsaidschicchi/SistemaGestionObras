@@ -1,5 +1,5 @@
 // ======================================================
-// QA_CU00.GS
+// QA_CU00.JS
 // Regresión automática de reglas críticas de usuarios.
 // ======================================================
 function QA_CU00(){const q=new QA_Runner("CU00");const t0=new Date("2026-08-01T12:00:00Z");

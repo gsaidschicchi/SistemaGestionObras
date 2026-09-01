@@ -1,5 +1,5 @@
 // ======================================================
-// BE_USUARIO.GS
+// BE_USUARIO.JS
 // Entidad de usuario. Solo datos, sin reglas de negocio.
 // ======================================================
 class BE_Usuario {

@@ -1,5 +1,5 @@
 // ======================================================
-// QA_CU01.GS
+// QA_CU01.JS
 // Regresión automática de reglas críticas de supervisión.
 // ======================================================
 function QA_CU01(){const q=new QA_Runner("CU01");const ahora=new Date("2026-08-20T10:00:00Z");

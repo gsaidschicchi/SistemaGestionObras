@@ -1,5 +1,5 @@
 // ======================================================
-// DAL_BASE.GS
+// DAL_BASE.JS
 // Operaciones comunes de persistencia sobre Sheets.
 // ======================================================
 class DAL_Base {

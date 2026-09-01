@@ -3,6 +3,7 @@
 // Reglas de búsqueda, normalización y clasificación de obra.
 // ======================================================
 class BLL_Obra {
+
   static normalizarBusqueda(texto) {
     return String(texto || "")
       .trim()
@@ -10,85 +11,218 @@ class BLL_Obra {
       .replace(/[^A-Z0-9]/g, "");
   }
 
-  static determinarFamilia(codigo) {
-    const c = String(codigo || "").toUpperCase();
-    if (c.includes("OC")) return Config.FAMILIAS_OBRA.OC;
-    if (c.includes("FO")) return Config.FAMILIAS_OBRA.FO;
-    if (/[A-Z]F(?:$|[^A-Z0-9])/.test(c)) return Config.FAMILIAS_OBRA.FTTH;
-    return null;
+  static determinarFamilia(codigoObra) {
+    const codigo = String(codigoObra || "")
+      .trim()
+      .toUpperCase();
+
+    if (!codigo) {
+      return "";
+    }
+
+    if (/\bOC\d*\b/.test(codigo)) {
+      return Config.FAMILIAS_OBRA.OC;
+    }
+
+    if (/\bFO\d*\b/.test(codigo)) {
+      return Config.FAMILIAS_OBRA.FO;
+    }
+
+    const codigoBase =
+      codigo.split(/\s+/)[0];
+
+    if (/[A-Z]F$/.test(codigoBase)) {
+      return Config.FAMILIAS_OBRA.FTTH;
+    }
+
+    return "";
   }
+
+  // ============================================================================
+  // REGLA DE BÚSQUEDA DE OBRA
+  // La búsqueda ingresada por el usuario funciona por prefijo/coincidencia
+  // para permitir seleccionar la obra exacta.
+  //
+  // Ejemplo:
+  //   búsqueda:  CA140
+  //   resultados: CA140 FO0, CA140 FO1, CA140 FO2
+  //
+  // La asignación de contratista NO se resuelve durante esta búsqueda.
+  // Se determina recién cuando el usuario selecciona una obra concreta.
+  // ============================================================================
 
   static buscar(texto, repo = null) {
     repo = repo || DAL_Obra;
+
     const busqueda = this.normalizarBusqueda(texto);
-    exigir(busqueda, "BUSQUEDA_VACIA", "Debe indicar una obra.");
+
+    exigir(
+      busqueda,
+      "BUSQUEDA_VACIA",
+      "Debe indicar una obra."
+    );
 
     // En producción consulta el catálogo rápido pm_obras_validas de BigQuery.
     // En QA conserva compatibilidad con repositorios en memoria.
     if (typeof repo.buscarExternasPorPrefijo === "function") {
-      const filas = repo.buscarExternasPorPrefijo(busqueda);
+
+      const filas =
+        repo.buscarExternasPorPrefijo(busqueda);
+
       const obras = filas
         .map(f => {
-          const codigo = f && f.f && f.f[0] ? String(f.f[0].v || "").trim() : "";
-          return MAP_Obra.BigQueryFilaABE(f, this.determinarFamilia(codigo));
+
+          const codigo =
+            f &&
+            f.f &&
+            f.f[0]
+              ? String(f.f[0].v || "").trim()
+              : "";
+
+          return MAP_Obra.BigQueryFilaABE(
+            f,
+            this.determinarFamilia(codigo)
+          );
         })
         .filter(Boolean);
 
       const unicas = [];
       const vistos = new Set();
+
       obras.forEach(obra => {
-        const clave = this.normalizarBusqueda(obra.CodigoObra);
+
+        const clave =
+          this.normalizarBusqueda(
+            obra.CodigoObra
+          );
+
         if (!vistos.has(clave)) {
           vistos.add(clave);
           unicas.push(obra);
         }
       });
+
       return unicas;
     }
 
-    return repo.buscarTexto(texto).map(r => MAP_Obra.FilaaBE(r.datos));
+    return repo
+      .buscarTexto(texto)
+      .map(
+        r => MAP_Obra.FilaaBE(r.datos)
+      );
   }
 
   static obtener(codigo, repo = null) {
     repo = repo || DAL_Obra;
 
-    const local = repo.buscarPorCodigo(codigo);
-    if (local) return MAP_Obra.FilaaBE(local.datos);
+    const local =
+      repo.buscarPorCodigo(codigo);
 
-    if (typeof repo.buscarExternaPorCodigo === "function") {
-      const normalizado = this.normalizarBusqueda(codigo);
-      if (!normalizado) return null;
-      const fila = repo.buscarExternaPorCodigo(normalizado);
-      if (!fila) return null;
-      return MAP_Obra.BigQueryFilaABE(fila, this.determinarFamilia(codigo));
+    if (local) {
+      return MAP_Obra.FilaaBE(
+        local.datos
+      );
+    }
+
+    if (
+      typeof repo.buscarExternaPorCodigo ===
+      "function"
+    ) {
+
+      const normalizado =
+        this.normalizarBusqueda(codigo);
+
+      if (!normalizado) {
+        return null;
+      }
+
+      const fila =
+        repo.buscarExternaPorCodigo(
+          normalizado
+        );
+
+      if (!fila) {
+        return null;
+      }
+
+      return MAP_Obra.BigQueryFilaABE(
+        fila,
+        this.determinarFamilia(codigo)
+      );
     }
 
     return null;
   }
+
   static asegurarLocal(obra, repo = null) {
     repo = repo || DAL_Obra;
-    exigir(obra && obra.CodigoObra, "OBRA_REQUERIDA", "Debe existir una obra.");
 
-    const existente = repo.buscarPorCodigo(obra.CodigoObra);
-    if (existente) return MAP_Obra.FilaaBE(existente.datos);
+    exigir(
+      obra && obra.CodigoObra,
+      "OBRA_REQUERIDA",
+      "Debe existir una obra."
+    );
 
-    let idContratista = obra.IdContratista || "";
-    if (!idContratista && typeof repo.buscarLocalizadorDestinoPorObra === "function") {
-      const normalizado = this.normalizarBusqueda(obra.CodigoObra);
-      const localizador = repo.buscarLocalizadorDestinoPorObra(normalizado);
+    const existente =
+      repo.buscarPorCodigo(
+        obra.CodigoObra
+      );
+
+    if (existente) {
+      return MAP_Obra.FilaaBE(
+        existente.datos
+      );
+    }
+
+    let idContratista =
+      obra.IdContratista || "";
+
+    if (
+      !idContratista &&
+      typeof repo.buscarLocalizadorDestinoPorObra ===
+        "function"
+    ) {
+
+      const normalizado =
+        this.normalizarBusqueda(
+          obra.CodigoObra
+        );
+
+      const localizador =
+        repo.buscarLocalizadorDestinoPorObra(
+          normalizado
+        );
+
       if (localizador) {
-        const contratista = BLL_Contratista.resolverOCrear(localizador);
-        idContratista = contratista ? contratista.IdContratista : "";
+
+        const contratista =
+          BLL_Contratista.resolverOCrear(
+            localizador
+          );
+
+        idContratista =
+          contratista
+            ? contratista.IdContratista
+            : "";
       }
     }
 
-    const local = new BE_Obra(
-      obra.CodigoObra,
-      idContratista,
-      obra.Familia || this.determinarFamilia(obra.CodigoObra),
-      obra.Activa || Config.ACTIVO.SI
+    const local =
+      new BE_Obra(
+        obra.CodigoObra,
+        idContratista,
+        obra.Familia ||
+          this.determinarFamilia(
+            obra.CodigoObra
+          ),
+        obra.Activa ||
+          Config.ACTIVO.SI
+      );
+
+    repo.insertar(
+      MAP_Obra.BEaFila(local)
     );
-    repo.insertar(MAP_Obra.BEaFila(local));
+
     return local;
   }
 

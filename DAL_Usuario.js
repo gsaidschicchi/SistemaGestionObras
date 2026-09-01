@@ -1,5 +1,5 @@
 // ======================================================
-// DAL_USUARIO.GS
+// DAL_USUARIO.JS
 // Persistencia física de USUARIOS. Sin reglas de negocio.
 // ======================================================
 class DAL_Usuario {
