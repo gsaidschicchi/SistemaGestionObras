@@ -41,3 +41,12 @@ Prueba recomendada:
 - El detalle muestra correctamente coordenadas o referencia manual.
 - La confirmación de eliminación muestra datos operativos de la observación y oculta detalles técnicos.
 - Fechas de modificación y eliminación se formatean con fecha y hora.
+
+## v0.5.4 - Buscador de obras con BigQuery
+- Reutiliza el proyecto BigQuery `bot-estado-obras`.
+- Dataset: `pm_obras`.
+- Tabla de búsqueda: `pm_obras_validas`.
+- La búsqueda normaliza mayúsculas y elimina espacios, guiones y caracteres no alfanuméricos.
+- Consulta por prefijo con `STARTS_WITH`, igual al buscador funcional del bot anterior.
+- La integración quedó separada por capas: GUI_Supervision -> BLL_Obra -> DAL_Obra -> DAL_BigQuery -> BigQuery, con MAP_Obra para convertir resultados a BE_Obra.
+- El catálogo local OBRAS se conserva para datos propios del sistema; si una obra no existe localmente, BLL_Obra puede resolverla desde BigQuery.

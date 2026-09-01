@@ -4,15 +4,20 @@
 // ======================================================
 class BLL_Supervision {
   static iniciar(codigoObra, codUsuario, confirmado, deps = null, ahora = new Date()) {
+    const depsRecibidas = !!deps;
     deps = deps || { obras: DAL_Obra, supervisiones: DAL_Supervision };
 
     exigir(confirmado, "INICIO_NO_CONFIRMADO", "Debe confirmar el inicio.");
     exigir(codUsuario, "USUARIO_REQUERIDO", "Debe existir un usuario responsable.");
 
-    const ro = deps.obras.buscarPorCodigo(codigoObra);
-    exigir(ro, "OBRA_NO_EXISTE", "La obra no existe.");
-
-    const obra = MAP_Obra.FilaaBE(ro.datos);
+    let obra = null;
+    if (depsRecibidas) {
+      const ro = deps.obras.buscarPorCodigo(codigoObra);
+      obra = ro ? MAP_Obra.FilaaBE(ro.datos) : null;
+    } else {
+      obra = BLL_Obra.obtener(codigoObra);
+    }
+    exigir(obra, "OBRA_NO_EXISTE", "La obra no existe.");
     exigir(obra.Activa !== Config.ACTIVO.NO, "OBRA_INACTIVA", "La obra está inactiva.");
 
     const rs = deps.supervisiones.buscarPorObra(codigoObra);
