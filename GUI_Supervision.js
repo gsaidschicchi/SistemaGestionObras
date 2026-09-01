@@ -27,6 +27,9 @@ class GUI_Supervision {
     if (estado === "SUP_SELECCIONAR_FINALIZADA") return this._seleccionarFinalizada(chatId, telegramId, texto, usuario);
     if (estado === "SUP_OBRA_ACTIVA") return this._procesarObraActiva(chatId, telegramId, texto, usuario, sesion);
     if (estado === "SUP_CONFIRMAR_FINALIZACION") return this._confirmarFinalizacion(chatId, telegramId, texto, usuario, sesion);
+    if (estado === "SUP_FINALIZADA_DETALLE") return this._procesarFinalizadaDetalle(chatId, telegramId, texto, usuario, sesion);
+    if (estado === "REP_COMENTARIO_DECISION") return this._procesarDecisionComentarioReporte(chatId, telegramId, texto, usuario, sesion);
+    if (estado === "REP_COMENTARIO") return this._recibirComentarioReporte(chatId, telegramId, texto, usuario, sesion);
 
     if (estado === "OBS_TIPIFICACION") return this._seleccionarTipificacion(chatId, telegramId, texto, usuario, sesion);
     if (estado === "OBS_UBICACION") return this._recibirUbicacion(chatId, telegramId, texto, usuario, sesion, mensaje);
@@ -201,7 +204,7 @@ class GUI_Supervision {
     try {
       const cantidadObservaciones = BLL_Observacion.listarActivas(codigoObra).length;
       const supervision = BLL_Supervision.finalizar(codigoObra, usuario.CodUsuario, true);
-      BLL_SesionTelegram.limpiar(telegramId);
+      BLL_SesionTelegram.guardar(telegramId, "SUP_FINALIZADA_DETALLE", codigoObra, {});
 
       const detalle = cantidadObservaciones === 0
         ? "Resultado: <b>recorrida sin observaciones</b>"
@@ -210,7 +213,7 @@ class GUI_Supervision {
       return TelegramService.enviarMensaje(
         chatId,
         `<b>Supervisión finalizada correctamente.</b>\n\nObra: <b>${this._esc(supervision.CodigoObra)}</b>\nInicio: ${this._fecha(supervision.FechaInicio)}\nFinalización: ${this._fecha(supervision.FechaFinalizacion)}\n${detalle}`,
-        TelegramService.teclado([["Volver al menú"]])
+        TelegramService.teclado([["Generar reporte"], ["Volver al menú"]])
       );
     } catch (error) {
       const supervision = BLL_Supervision.obtener(codigoObra);
@@ -781,7 +784,50 @@ class GUI_Supervision {
       return this._mostrarMenuPrincipalCompacto(chatId, usuario, "La supervisión seleccionada no está finalizada.");
     }
 
-    return TelegramService.enviarMensaje(chatId, `<b>Supervisión finalizada</b>\nObra: <b>${this._esc(supervision.CodigoObra)}</b>\nInicio: ${this._fecha(supervision.FechaInicio)}\nFinalización: ${this._fecha(supervision.FechaFinalizacion)}`, TelegramService.teclado([["Volver al menú"]]));
+    BLL_SesionTelegram.guardar(telegramId, "SUP_FINALIZADA_DETALLE", codigo, {});
+    return TelegramService.enviarMensaje(chatId, `<b>Supervisión finalizada</b>\nObra: <b>${this._esc(supervision.CodigoObra)}</b>\nInicio: ${this._fecha(supervision.FechaInicio)}\nFinalización: ${this._fecha(supervision.FechaFinalizacion)}`, TelegramService.teclado([["Generar reporte"], ["Volver al menú"]]));
+  }
+
+  static _procesarFinalizadaDetalle(chatId, telegramId, texto, usuario, sesion) {
+    const opcion = this._normalizar(texto);
+    const codigoObra = String(sesion.CodigoObraActiva || "").trim().toUpperCase();
+    if (opcion !== "GENERAR REPORTE") {
+      const supervision = BLL_Supervision.obtener(codigoObra);
+      if (!supervision) return this._mostrarMenuPrincipalCompacto(chatId, usuario, "No pude recuperar la supervisión finalizada.");
+      return TelegramService.enviarMensaje(chatId, `<b>Supervisión finalizada</b>\nObra: <b>${this._esc(supervision.CodigoObra)}</b>\nInicio: ${this._fecha(supervision.FechaInicio)}\nFinalización: ${this._fecha(supervision.FechaFinalizacion)}`, TelegramService.teclado([["Generar reporte"], ["Volver al menú"]]));
+    }
+    BLL_SesionTelegram.guardar(telegramId, "REP_COMENTARIO_DECISION", codigoObra, {});
+    return TelegramService.enviarMensaje(chatId, "¿Desea indicar algún comentario general de la obra?", TelegramService.teclado([["Sí", "No"], ["Volver al menú"]]));
+  }
+
+  static _procesarDecisionComentarioReporte(chatId, telegramId, texto, usuario, sesion) {
+    const opcion = this._normalizar(texto);
+    const codigoObra = String(sesion.CodigoObraActiva || "").trim().toUpperCase();
+    if (opcion === "SI") {
+      BLL_SesionTelegram.guardar(telegramId, "REP_COMENTARIO", codigoObra, {});
+      return TelegramService.enviarMensaje(chatId, "Ingresá el comentario general de la obra:", TelegramService.teclado([["Volver al menú"]]));
+    }
+    if (opcion === "NO") return this._generarYEnviarReporte(chatId, telegramId, usuario, codigoObra, "");
+    return TelegramService.enviarMensaje(chatId, "Seleccioná <b>Sí</b> o <b>No</b>.", TelegramService.teclado([["Sí", "No"], ["Volver al menú"]]));
+  }
+
+  static _recibirComentarioReporte(chatId, telegramId, texto, usuario, sesion) {
+    const comentario = String(texto || "").trim();
+    if (!comentario) return TelegramService.enviarMensaje(chatId, "Ingresá un comentario general para continuar.", TelegramService.teclado([["Volver al menú"]]));
+    return this._generarYEnviarReporte(chatId, telegramId, usuario, String(sesion.CodigoObraActiva || "").trim().toUpperCase(), comentario);
+  }
+
+  static _generarYEnviarReporte(chatId, telegramId, usuario, codigoObra, comentario) {
+    try {
+      TelegramService.enviarMensaje(chatId, "Generando reporte PDF…", TelegramService.quitarTeclado());
+      const reporte = BLL_Reporte.generar(codigoObra, usuario.CodUsuario, comentario);
+      TelegramService.enviarDocumento(chatId, reporte.DriveFileId, reporte.NombreArchivo);
+      BLL_SesionTelegram.guardar(telegramId, "SUP_FINALIZADA_DETALLE", codigoObra, {});
+      return TelegramService.enviarMensaje(chatId, `<b>Reporte generado correctamente.</b>\nVersión: <b>${reporte.Version}</b>`, TelegramService.teclado([["Generar reporte"], ["Volver al menú"]]));
+    } catch (error) {
+      BLL_SesionTelegram.guardar(telegramId, "SUP_FINALIZADA_DETALLE", codigoObra, {});
+      return TelegramService.enviarMensaje(chatId, this._mensajeError(error), TelegramService.teclado([["Generar reporte"], ["Volver al menú"]]));
+    }
   }
 
   static _mostrarMenuPrincipal(chatId, usuario, prefijo = "") {

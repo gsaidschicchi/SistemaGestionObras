@@ -1,21 +1,17 @@
-# Sistema Gestión de Obras — Sprint 1 v0.5.5
+# Sistema de Gestión y Supervisión de Obras — Sprint 1 v0.5.6
 
-## Bloque implementado
-Finalización de supervisión (CU01).
+## Bloque incorporado
+Reporte PDF de supervisión finalizada.
 
-### Flujo Telegram
-- Desde una obra EN_CURSO se puede seleccionar `Finalizar supervisión`.
-- Antes de persistir se muestra un resumen con obra, fecha de inicio y cantidad de observaciones activas.
-- Si no existen observaciones activas, se informa explícitamente que puede finalizar igualmente.
-- La finalización requiere confirmación explícita.
-- `Cancelar` conserva la supervisión EN_CURSO y vuelve a la obra activa.
-- Al confirmar se registra `FINALIZADA`, `FECHA_FINALIZACION` y `COD_USUARIO_FINALIZACION`.
-- Luego de finalizar se limpia la obra activa de la sesión.
-- Las supervisiones finalizadas continúan disponibles desde `Supervisiones finalizadas` en modo consulta.
-- La generación de PDF queda separada para el siguiente bloque.
+- Puede generarse inmediatamente al finalizar una supervisión.
+- Puede generarse posteriormente desde `Supervisiones finalizadas`.
+- Antes de generarlo pregunta si se desea agregar un comentario general de la obra.
+- El comentario general pertenece a la versión del reporte y se persiste en REPORTES.
+- Incluye solo observaciones y evidencias ACTIVAS.
+- Sin observaciones: `Obra recorrida sin observaciones activas ni fallas registradas.`
+- Evidencias fotográficas en grilla de hasta dos columnas, conservando proporción.
+- Versionado V1, V2, etc.; la nueva versión queda VIGENTE y la anterior REEMPLAZADA.
+- El PDF se guarda en la carpeta Drive de la obra y se envía por Telegram.
 
-## QA
-CU01 incorpora 19 casos automáticos, incluyendo registro de fecha/usuario finalizador y prevención de doble finalización.
-
-## Base
-Construido sobre v0.5.4 estable con buscador de obras en BigQuery.
+## Migración necesaria
+Después de `clasp push`, ejecutar una vez `setupSprint1()` antes de probar Telegram. Esto agrega `COMENTARIO_GENERAL` a la hoja REPORTES sin perder las filas existentes.

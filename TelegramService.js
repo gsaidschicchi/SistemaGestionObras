@@ -70,6 +70,18 @@ class TelegramService {
     };
   }
 
+  static enviarDocumento(chatId, driveFileId, nombreArchivo) {
+    const token = this.token();
+    if (!token) throw new Error("Falta TELEGRAM_BOT_TOKEN en Script Properties.");
+    const blob = DriveApp.getFileById(driveFileId).getBlob().setName(nombreArchivo);
+    const respuesta = UrlFetchApp.fetch(`https://api.telegram.org/bot${token}/sendDocument`, {
+      method: "post", payload: { chat_id: String(chatId), document: blob }, muteHttpExceptions: true
+    });
+    const codigo = respuesta.getResponseCode();
+    if (codigo < 200 || codigo >= 300) throw new Error(`Telegram respondió HTTP ${codigo} al enviar el PDF.`);
+    return respuesta;
+  }
+
   static teclado(filas) {
     return {
       keyboard: filas,
