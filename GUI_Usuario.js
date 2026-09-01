@@ -5,21 +5,20 @@
 class GUI_Usuario {
   static procesar(chatId, telegramId, texto) {
     const sesion = BLL_SesionTelegram.obtener(telegramId);
-    const estadoConversacion = sesion ? sesion.EstadoConversacion : "";
+    const estadoConversacion = sesion ? String(sesion.EstadoConversacion || "") : "";
 
-    if (this._esCancelar(texto)) {
-      BLL_SesionTelegram.limpiar(telegramId);
-      return this._mostrarAcceso(chatId, telegramId, "Operación cancelada.");
-    }
-
-    if (estadoConversacion) {
+    // CU00 solo administra sus propios estados conversacionales.
+    if (estadoConversacion.startsWith("ALTA_")) {
+      if (this._esCancelar(texto)) {
+        BLL_SesionTelegram.limpiar(telegramId);
+        return this._mostrarAcceso(chatId, telegramId, "Operación cancelada.");
+      }
       return this._continuarAlta(chatId, telegramId, texto, estadoConversacion);
     }
 
     const acceso = BLL_Usuario.registrarAcceso(telegramId);
 
     if (acceso.estado === "NO_REGISTRADO") {
-      // No se crea una sesión vacía por cada saludo. La sesión nace al iniciar el alta.
       if (this._esDarDeAlta(texto)) return this._iniciarAlta(chatId, telegramId);
       return TelegramService.enviarMensaje(
         chatId,
@@ -54,9 +53,20 @@ class GUI_Usuario {
     }
 
     if (acceso.estado === "ACCESO_OK") {
+      const rol = acceso.usuario.RolAprobado;
+      if (rol === Config.ROLES.SUPERVISOR || rol === Config.ROLES.ADMINISTRADOR) {
+        return GUI_Supervision.procesar(
+          chatId,
+          telegramId,
+          texto,
+          acceso.usuario,
+          sesion
+        );
+      }
+
       return TelegramService.enviarMensaje(
         chatId,
-        `Hola <b>${this._esc(acceso.usuario.Nombre)}</b>.\nRol: <b>${this._esc(acceso.usuario.RolAprobado)}</b>.`,
+        `Hola <b>${this._esc(acceso.usuario.Nombre)}</b>.\nRol: <b>${this._esc(rol)}</b>.`,
         TelegramService.quitarTeclado()
       );
     }

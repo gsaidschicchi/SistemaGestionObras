@@ -3,7 +3,85 @@
 // Reglas de inicio, consulta y finalización de supervisión.
 // ======================================================
 class BLL_Supervision {
-  static iniciar(codigoObra,codUsuario,confirmado,deps=null,ahora=new Date()){deps=deps||{obras:DAL_Obra,supervisiones:DAL_Supervision};exigir(confirmado,"INICIO_NO_CONFIRMADO","Debe confirmar el inicio.");const ro=deps.obras.buscarPorCodigo(codigoObra);exigir(ro,"OBRA_NO_EXISTE","La obra no existe.");const obra=MAP_Obra.FilaaBE(ro.datos);exigir(obra.Activa!==Config.ACTIVO.NO,"OBRA_INACTIVA","La obra está inactiva.");const rs=deps.supervisiones.buscarPorObra(codigoObra);if(rs){const s=MAP_Supervision.FilaaBE(rs.datos);if(s.Estado===Config.ESTADOS_SUPERVISION.EN_CURSO)return {existente:true,supervision:s};throw new ErrorNegocio("SUPERVISION_FINALIZADA","La obra ya posee una supervisión finalizada.");}const s=new BE_Supervision(codigoObra,ahora,null,Config.ESTADOS_SUPERVISION.EN_CURSO,codUsuario,null);deps.supervisiones.insertar(MAP_Supervision.BEaFila(s));return {existente:false,supervision:s};}
-  static finalizar(codigoObra,codUsuario,confirmado,repo=null,ahora=new Date()){repo=repo||DAL_Supervision;exigir(confirmado,"FINALIZACION_NO_CONFIRMADA","Debe confirmar la finalización.");const r=repo.buscarPorObra(codigoObra);exigir(r,"SUPERVISION_NO_EXISTE","No existe supervisión.");const s=MAP_Supervision.FilaaBE(r.datos);exigir(s.Estado===Config.ESTADOS_SUPERVISION.EN_CURSO,"SUPERVISION_FINALIZADA","La supervisión ya está finalizada.");s.Estado=Config.ESTADOS_SUPERVISION.FINALIZADA;s.FechaFinalizacion=ahora;s.CodUsuarioFinalizacion=codUsuario;repo.actualizar(r.fila,MAP_Supervision.BEaFila(s));return s;}
-  static obtener(codigoObra,repo=null){repo=repo||DAL_Supervision;const r=repo.buscarPorObra(codigoObra);return r?MAP_Supervision.FilaaBE(r.datos):null;}
+  static iniciar(codigoObra, codUsuario, confirmado, deps = null, ahora = new Date()) {
+    deps = deps || { obras: DAL_Obra, supervisiones: DAL_Supervision };
+
+    exigir(confirmado, "INICIO_NO_CONFIRMADO", "Debe confirmar el inicio.");
+    exigir(codUsuario, "USUARIO_REQUERIDO", "Debe existir un usuario responsable.");
+
+    const ro = deps.obras.buscarPorCodigo(codigoObra);
+    exigir(ro, "OBRA_NO_EXISTE", "La obra no existe.");
+
+    const obra = MAP_Obra.FilaaBE(ro.datos);
+    exigir(obra.Activa !== Config.ACTIVO.NO, "OBRA_INACTIVA", "La obra está inactiva.");
+
+    const rs = deps.supervisiones.buscarPorObra(codigoObra);
+    if (rs) {
+      const existente = MAP_Supervision.FilaaBE(rs.datos);
+
+      if (existente.Estado === Config.ESTADOS_SUPERVISION.EN_CURSO) {
+        return { existente: true, supervision: existente };
+      }
+
+      throw new ErrorNegocio(
+        "SUPERVISION_FINALIZADA",
+        "La obra ya posee una supervisión finalizada."
+      );
+    }
+
+    const supervision = new BE_Supervision(
+      codigoObra,
+      ahora,
+      null,
+      Config.ESTADOS_SUPERVISION.EN_CURSO,
+      codUsuario,
+      null
+    );
+
+    deps.supervisiones.insertar(MAP_Supervision.BEaFila(supervision));
+    return { existente: false, supervision };
+  }
+
+  static finalizar(codigoObra, codUsuario, confirmado, repo = null, ahora = new Date()) {
+    repo = repo || DAL_Supervision;
+
+    exigir(confirmado, "FINALIZACION_NO_CONFIRMADA", "Debe confirmar la finalización.");
+
+    const r = repo.buscarPorObra(codigoObra);
+    exigir(r, "SUPERVISION_NO_EXISTE", "No existe supervisión.");
+
+    const supervision = MAP_Supervision.FilaaBE(r.datos);
+    exigir(
+      supervision.Estado === Config.ESTADOS_SUPERVISION.EN_CURSO,
+      "SUPERVISION_FINALIZADA",
+      "La supervisión ya está finalizada."
+    );
+
+    supervision.Estado = Config.ESTADOS_SUPERVISION.FINALIZADA;
+    supervision.FechaFinalizacion = ahora;
+    supervision.CodUsuarioFinalizacion = codUsuario;
+
+    repo.actualizar(r.fila, MAP_Supervision.BEaFila(supervision));
+    return supervision;
+  }
+
+  static obtener(codigoObra, repo = null) {
+    repo = repo || DAL_Supervision;
+    const r = repo.buscarPorObra(codigoObra);
+    return r ? MAP_Supervision.FilaaBE(r.datos) : null;
+  }
+
+  static listarEnCurso(repo = null) {
+    repo = repo || DAL_Supervision;
+    return repo
+      .listarPorEstado(Config.ESTADOS_SUPERVISION.EN_CURSO)
+      .map(r => MAP_Supervision.FilaaBE(r.datos));
+  }
+
+  static listarFinalizadas(repo = null) {
+    repo = repo || DAL_Supervision;
+    return repo
+      .listarPorEstado(Config.ESTADOS_SUPERVISION.FINALIZADA)
+      .map(r => MAP_Supervision.FilaaBE(r.datos));
+  }
 }
