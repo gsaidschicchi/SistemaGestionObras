@@ -175,5 +175,8 @@ class GUI_Usuario {
   static _normalizar(texto) { return String(texto || "").trim().toUpperCase(); }
   static _fecha(fecha) { return fecha ? Utilities.formatDate(new Date(fecha), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm") : "fecha no disponible"; }
   static _esc(valor) { return String(valor == null ? "" : valor).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-  static _mensajeError(error) { return error && error.message ? `No se pudo registrar la solicitud: ${this._esc(error.message)}` : "No se pudo registrar la solicitud."; }
+  static _mensajeError(error) {
+    if (error && error.codigo === "ACCESO_DENEGADO") return "No tenés permiso para acceder a este módulo.";
+    return error && error.message ? `No se pudo procesar la solicitud: ${this._esc(error.message)}` : "No se pudo procesar la solicitud.";
+  }
 }

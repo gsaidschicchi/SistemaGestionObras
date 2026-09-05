@@ -7,10 +7,14 @@ class GUI_Menu {
   static procesar(chatId, telegramId, texto, usuario, sesion = null, mensaje = null) {
     const estado = sesion ? String(sesion.EstadoConversacion || "") : "";
 
-    // Si existe un flujo de supervisión en curso, revalida el permiso antes de delegar.
+    // Revalida permisos en cada interacción antes de delegar a un módulo.
     if (estado.startsWith("SUP_") || estado.startsWith("OBS_") || estado.startsWith("REP_")) {
       BLL_Usuario.exigirPermiso(usuario.RolAprobado, Config.MODULOS.SUPERVISION_OBRA);
       return GUI_Supervision.procesar(chatId, telegramId, texto, usuario, sesion, mensaje);
+    }
+    if (estado.startsWith("EST_")) {
+      BLL_Usuario.exigirPermiso(usuario.RolAprobado, Config.MODULOS.ESTADO_OBRA);
+      return GUI_EstadoObra.procesar(chatId, telegramId, texto, usuario, sesion);
     }
 
     const opcion = this._normalizar(texto);
@@ -19,6 +23,12 @@ class GUI_Menu {
       BLL_Usuario.exigirPermiso(usuario.RolAprobado, Config.MODULOS.SUPERVISION_OBRA);
       BLL_SesionTelegram.limpiar(telegramId);
       return GUI_Supervision.procesar(chatId, telegramId, "", usuario, null, mensaje);
+    }
+
+    if (opcion === "ESTADO DE OBRA") {
+      BLL_Usuario.exigirPermiso(usuario.RolAprobado, Config.MODULOS.ESTADO_OBRA);
+      BLL_SesionTelegram.limpiar(telegramId);
+      return GUI_EstadoObra.iniciar(chatId, telegramId);
     }
 
     // El menú interno de CU01 no persiste un estado conversacional mientras
@@ -42,6 +52,7 @@ class GUI_Menu {
       .filter(m => Config.MODULOS_DISPONIBLES.includes(m));
     const botones = [];
     if (permitidos.includes(Config.MODULOS.SUPERVISION_OBRA)) botones.push(["Supervisión de Obra"]);
+    if (permitidos.includes(Config.MODULOS.ESTADO_OBRA)) botones.push(["Estado de Obra"]);
 
     const saludo = `Hola <b>${this._esc(usuario.Nombre)}</b>.\nRol: <b>${this._esc(usuario.RolAprobado)}</b>.`;
     const texto = botones.length ? `${saludo}\n\n¿Qué querés hacer?` : `${saludo}\n\nNo tenés módulos disponibles actualmente.`;

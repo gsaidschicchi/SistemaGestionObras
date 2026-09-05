@@ -10,9 +10,10 @@ class QA_Entorno {
     this.limpiar();
     this.crearHoja("TEST_ROLES",Config.HEADERS.ROLES);
     this.crearHoja("TEST_PERMISOS",Config.HEADERS.PERMISOS);
+    this.crearHoja("TEST_TAREAS",Config.HEADERS.TAREAS_CONSOLIDADO);
     const carpeta=this.crearCarpetaDrive();
     Logger.log(`[QA] Entorno preparado. Carpeta Drive=${carpeta.getName()} (${carpeta.getId()})`);
-    return {hojas:["TEST_ROLES","TEST_PERMISOS"],driveFolderId:carpeta.getId()};
+    return {hojas:["TEST_ROLES","TEST_PERMISOS","TEST_TAREAS"],driveFolderId:carpeta.getId()};
   }
 
   static crearHoja(nombre,headers){
@@ -39,6 +40,13 @@ class QA_Entorno {
     if(!h) throw new Error("No existe TEST_PERMISOS. Ejecutá QA_Entorno.preparar().");
     if(h.getLastRow()>1) h.getRange(2,1,h.getLastRow()-1,h.getLastColumn()).clearContent();
     if(rows&&rows.length) h.getRange(2,1,rows.length,3).setValues(rows);
+  }
+
+  static cargarTareas(rows){
+    const h=DataSourceSheets.obtenerSpreadsheet().getSheetByName("TEST_TAREAS");
+    if(!h) throw new Error("No existe TEST_TAREAS. Ejecutá QA_Entorno.preparar().");
+    if(h.getLastRow()>1) h.getRange(2,1,h.getLastRow()-1,h.getLastColumn()).clearContent();
+    if(rows&&rows.length) h.getRange(2,1,rows.length,5).setValues(rows);
   }
 
   static crearCarpetaDrive(){

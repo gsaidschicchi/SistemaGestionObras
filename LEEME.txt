@@ -1,0 +1,17 @@
+SPRINT 2A - FIX CACHE ESTADO DE OBRA
+
+Objetivo:
+Evitar recorrer RAW_OBRAS (~150.000 filas) en cada interacción de Telegram.
+
+Reemplazar/agregar solamente los archivos incluidos.
+
+Luego:
+1) clasp push
+2) Apps Script: archivo ConsolidadoUpdateService.gs -> función actualizarConsolidadoObras
+   La primera ejecución debe crear ESTADO_OBRAS_TAREAS y ESTADO_OBRAS_INDICE.
+3) Apps Script: archivo QA_ConsolidadoUpdate.gs -> función QA_Incremento_ConsolidadoUpdate
+   Esperado: 76/76 PASS.
+4) Apps Script: archivo QA_PerformanceEstadoObra.gs -> función QA_MedirPerformanceEstadoObra
+   Compartir el JSON de tiempos.
+
+No hacer Git ni deployment todavía.

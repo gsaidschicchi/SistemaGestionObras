@@ -16,7 +16,12 @@
       REPORTES: "REPORTES",
       SESIONES_TELEGRAM: "SESIONES_TELEGRAM",
       ROLES: "ROLES",
-      PERMISOS: "PERMISOS"
+      PERMISOS: "PERMISOS",
+      RAW_OBRAS: "RAW_OBRAS",
+      ESTADO_OBRAS_TAREAS: "ESTADO_OBRAS_TAREAS",
+      ESTADO_OBRAS_INDICE: "ESTADO_OBRAS_INDICE",
+      CONTROL: "CONTROL",
+      LIQUIDACION_OBRAS: "LIQUIDACION_OBRAS"
     },
 
     ROLES: {
@@ -38,7 +43,7 @@
       DIFUSION_HISTORIAL: "DIFUSION_HISTORIAL"
     },
 
-    MODULOS_DISPONIBLES: ["SUPERVISION_OBRA"],
+    MODULOS_DISPONIBLES: ["SUPERVISION_OBRA", "ESTADO_OBRA"],
 
     ESTADOS_APROBACION: {
       PENDIENTE: "PENDIENTE_APROBACION",
@@ -97,6 +102,10 @@
     PM: {
       NOMBRE_CARPETA: "PM_Obras",
       NOMBRE_ARCHIVO: "APPS_PMOVXF.txt"
+    },
+
+    CONSOLIDADO: {
+      NOMBRE_CARPETA: "csv_Obras"
     },
 
     HEADERS: {
@@ -210,6 +219,15 @@
         "ROL",
         "MODULO",
         "PERMITIDO"
+      ],
+
+      TAREAS_CONSOLIDADO: [
+        "Tareas_Ticket",
+        "Moica Obra",
+        "Tareas_Estado",
+        "Estado Supervisión",
+        "Estado Materiales",
+        "Última EC"
       ]
     }
 
