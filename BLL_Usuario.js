@@ -5,6 +5,27 @@
 class BLL_Usuario {
   static _repo(repo){return repo||DAL_Usuario;}
   static _rolRepo(repo){return repo||DAL_Rol;}
+  static _permisoRepo(repo){return repo||DAL_Permiso;}
+
+  static tienePermiso(rol,modulo,permisoRepo=null){
+    const r=String(rol||"").trim().toUpperCase();
+    const m=String(modulo||"").trim().toUpperCase();
+    if(!r||!m)return false;
+    const permisos=this._permisoRepo(permisoRepo).listarPorRol(r);
+    const especifico=permisos.filter(x=>x.Modulo===m).slice(-1)[0];
+    if(especifico)return especifico.Permitido===Config.ACTIVO.SI;
+    const wildcard=permisos.filter(x=>x.Modulo==="*").slice(-1)[0];
+    return !!wildcard&&wildcard.Permitido===Config.ACTIVO.SI;
+  }
+
+  static exigirPermiso(rol,modulo,permisoRepo=null){
+    exigir(this.tienePermiso(rol,modulo,permisoRepo),"ACCESO_DENEGADO","No tenés permiso para acceder a este módulo.");
+    return true;
+  }
+
+  static obtenerModulosPermitidos(rol,permisoRepo=null){
+    return Object.keys(Config.MODULOS).map(k=>Config.MODULOS[k]).filter(m=>this.tienePermiso(rol,m,permisoRepo));
+  }
 
   static obtenerRolesPublicos(rolRepo=null){
     return this._rolRepo(rolRepo).listarActivos().filter(r=>r.Rol!==Config.ROLES.ADMINISTRADOR);

@@ -38,6 +38,26 @@ function setupSprint1() {
     ]);
   }
 
+  const hPermisos = DataSourceSheets.obtenerHoja(Config.HOJAS.PERMISOS);
+  if (hPermisos.getLastRow() < 2) {
+    const permisosIniciales = [
+      [Config.ROLES.ADMINISTRADOR, "*", Config.ACTIVO.SI],
+      [Config.ROLES.SUPERVISOR, Config.MODULOS.SUPERVISION_OBRA, Config.ACTIVO.SI],
+      [Config.ROLES.ADMINISTRATIVO_CONTRATISTA, Config.MODULOS.ESTADO_OBRA, Config.ACTIVO.SI],
+      [Config.ROLES.ADMINISTRATIVO_CONTRATISTA, Config.MODULOS.CONSULTA_PM, Config.ACTIVO.SI],
+      [Config.ROLES.ANALISTA_DESPACHO, Config.MODULOS.ESTADO_OBRA, Config.ACTIVO.SI],
+      [Config.ROLES.ANALISTA_DESPACHO, Config.MODULOS.CONSULTA_PM, Config.ACTIVO.SI],
+      [Config.ROLES.SUPERVISORES_OBRA_TLC, Config.MODULOS.ESTADO_OBRA, Config.ACTIVO.SI],
+      [Config.ROLES.SUPERVISORES_OBRA_TLC, Config.MODULOS.CONSULTA_PM, Config.ACTIVO.SI],
+      [Config.ROLES.JEFE_OBRA_, Config.MODULOS.ESTADO_OBRA, Config.ACTIVO.SI],
+      [Config.ROLES.JEFE_OBRA_, Config.MODULOS.CONSULTA_PM, Config.ACTIVO.SI],
+      [Config.ROLES.GERENTE, Config.MODULOS.ESTADO_OBRA, Config.ACTIVO.SI],
+      [Config.ROLES.GERENTE, Config.MODULOS.CONSULTA_PM, Config.ACTIVO.SI]
+    ];
+    Object.keys(Config.ROLES).forEach(k => permisosIniciales.push([Config.ROLES[k], Config.MODULOS.DIFUSION_HISTORIAL, Config.ACTIVO.SI]));
+    hPermisos.getRange(2, 1, permisosIniciales.length, 3).setValues(permisosIniciales);
+  }
+
   DataSourceSheets.formatearColumnaTexto(Config.HOJAS.USUARIOS, 1);
   DataSourceSheets.formatearColumnaTexto(Config.HOJAS.USUARIOS, 6);
   DataSourceSheets.formatearColumnaTexto(Config.HOJAS.SESIONES_TELEGRAM, 1);

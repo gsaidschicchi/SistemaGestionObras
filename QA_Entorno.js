@@ -9,9 +9,10 @@ class QA_Entorno {
   static preparar(){
     this.limpiar();
     this.crearHoja("TEST_ROLES",Config.HEADERS.ROLES);
+    this.crearHoja("TEST_PERMISOS",Config.HEADERS.PERMISOS);
     const carpeta=this.crearCarpetaDrive();
     Logger.log(`[QA] Entorno preparado. Carpeta Drive=${carpeta.getName()} (${carpeta.getId()})`);
-    return {hojas:["TEST_ROLES"],driveFolderId:carpeta.getId()};
+    return {hojas:["TEST_ROLES","TEST_PERMISOS"],driveFolderId:carpeta.getId()};
   }
 
   static crearHoja(nombre,headers){
@@ -31,6 +32,13 @@ class QA_Entorno {
     if(!h) throw new Error("No existe TEST_ROLES. Ejecutá QA_Entorno.preparar().");
     if(h.getLastRow()>1) h.getRange(2,1,h.getLastRow()-1,h.getLastColumn()).clearContent();
     if(rows&&rows.length) h.getRange(2,1,rows.length,4).setValues(rows);
+  }
+
+  static cargarPermisos(rows){
+    const h=DataSourceSheets.obtenerSpreadsheet().getSheetByName("TEST_PERMISOS");
+    if(!h) throw new Error("No existe TEST_PERMISOS. Ejecutá QA_Entorno.preparar().");
+    if(h.getLastRow()>1) h.getRange(2,1,h.getLastRow()-1,h.getLastColumn()).clearContent();
+    if(rows&&rows.length) h.getRange(2,1,rows.length,3).setValues(rows);
   }
 
   static crearCarpetaDrive(){

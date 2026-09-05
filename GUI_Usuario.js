@@ -53,23 +53,11 @@ class GUI_Usuario {
     }
 
     if (acceso.estado === "ACCESO_OK") {
-      const rol = acceso.usuario.RolAprobado;
-      if (rol === Config.ROLES.SUPERVISOR || rol === Config.ROLES.ADMINISTRADOR) {
-        return GUI_Supervision.procesar(
-          chatId,
-          telegramId,
-          texto,
-          acceso.usuario,
-          sesion,
-          mensaje
-        );
+      try {
+        return GUI_Menu.procesar(chatId, telegramId, texto, acceso.usuario, sesion, mensaje);
+      } catch (error) {
+        return TelegramService.enviarMensaje(chatId, this._mensajeError(error), TelegramService.quitarTeclado());
       }
-
-      return TelegramService.enviarMensaje(
-        chatId,
-        `Hola <b>${this._esc(acceso.usuario.Nombre)}</b>.\nRol: <b>${this._esc(rol)}</b>.`,
-        TelegramService.quitarTeclado()
-      );
     }
 
     return TelegramService.enviarMensaje(chatId, `Estado de acceso: ${this._esc(acceso.estado)}.`);
