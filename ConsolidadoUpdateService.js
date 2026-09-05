@@ -12,12 +12,21 @@ class ConsolidadoUpdateService {
     const rawValida = this._rawValida();
 
     if (rawValida && control.marcaFuente && Number(control.marcaFuente) === marcaFuente) {
+      const fechaDatosFuente = this._fechaDatosFuente(fuente);
+      if (!control.fechaDatos || control.fechaDatos.getTime() !== fechaDatosFuente.getTime()) {
+        this._guardarControl({
+          marcaFuente,
+          fechaProceso: control.fechaProceso || new Date(),
+          fechaDatos: fechaDatosFuente,
+          archivo: control.archivo || fuente.getName()
+        });
+      }
       if (!EstadoObraCacheService.esValido()) {
         const cache = EstadoObraCacheService.reconstruir();
         return {
           actualizado: false,
           motivo: "CACHE_RECONSTRUIDA",
-          fechaDatos: control.fechaProceso || null,
+          fechaDatos: fechaDatosFuente,
           archivo: control.archivo || fuente.getName(),
           cache
         };
@@ -25,7 +34,7 @@ class ConsolidadoUpdateService {
       return {
         actualizado: false,
         motivo: "SIN_CAMBIOS",
-        fechaDatos: control.fechaProceso || null,
+        fechaDatos: fechaDatosFuente,
         archivo: control.archivo || fuente.getName()
       };
     }
@@ -34,16 +43,18 @@ class ConsolidadoUpdateService {
     const cache = EstadoObraCacheService.reconstruir();
 
     const ahora = new Date();
+    const fechaDatos = this._fechaDatosFuente(fuente);
     this._guardarControl({
       marcaFuente,
       fechaProceso: ahora,
+      fechaDatos,
       archivo: fuente.getName()
     });
 
     return {
       actualizado: true,
       motivo: rawValida ? "FUENTE_ACTUALIZADA" : "BASE_INICIAL_CARGADA",
-      fechaDatos: ahora,
+      fechaDatos,
       archivo: fuente.getName(),
       cache
     };
@@ -51,7 +62,18 @@ class ConsolidadoUpdateService {
 
   static obtenerInfoActualizacion() {
     const c = this._leerControl();
-    return { fechaDatos: c.fechaProceso || null, archivo: c.archivo || "" };
+    return { fechaDatos: c.fechaDatos || c.fechaProceso || null, archivo: c.archivo || "" };
+  }
+
+
+  static _fechaDatosFuente(fuente) {
+    // La fecha visible representa cuándo ingresó el archivo al repositorio,
+    // no cuándo se ejecutó el script ni una modificación técnica posterior.
+    if (fuente && typeof fuente.getDateCreated === "function") {
+      const creada = fuente.getDateCreated();
+      if (creada instanceof Date && !isNaN(creada.getTime())) return creada;
+    }
+    return fuente.getLastUpdated();
   }
 
   static _archivoMasReciente() {
@@ -150,6 +172,9 @@ class ConsolidadoUpdateService {
       fechaProceso: mapa.CONSOLIDADO_FECHA_PROCESO instanceof Date
         ? mapa.CONSOLIDADO_FECHA_PROCESO
         : null,
+      fechaDatos: mapa.CONSOLIDADO_FECHA_DATOS instanceof Date
+        ? mapa.CONSOLIDADO_FECHA_DATOS
+        : null,
       archivo: String(mapa.CONSOLIDADO_ARCHIVO || "")
     };
   }
@@ -161,10 +186,13 @@ class ConsolidadoUpdateService {
 
     this._upsertControl(h, "CONSOLIDADO_MARCA_FUENTE", info.marcaFuente);
     this._upsertControl(h, "CONSOLIDADO_FECHA_PROCESO", info.fechaProceso);
+    this._upsertControl(h, "CONSOLIDADO_FECHA_DATOS", info.fechaDatos || info.fechaProceso);
     this._upsertControl(h, "CONSOLIDADO_ARCHIVO", info.archivo);
 
     const filaFecha = this._buscarFilaControl(h, "CONSOLIDADO_FECHA_PROCESO");
     if (filaFecha > 0) h.getRange(filaFecha, 2).setNumberFormat("dd/MM/yyyy HH:mm");
+    const filaFechaDatos = this._buscarFilaControl(h, "CONSOLIDADO_FECHA_DATOS");
+    if (filaFechaDatos > 0) h.getRange(filaFechaDatos, 2).setNumberFormat("dd/MM/yyyy HH:mm");
   }
 
   static _upsertControl(hoja, clave, valor) {

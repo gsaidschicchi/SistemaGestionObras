@@ -21,14 +21,16 @@ function QA_ConsolidadoUpdate() {
     let guardado = null;
     let reconstruccionesCache = 0;
     const fechaFuente = config.fechaFuente || new Date(2026, 8, 4, 10, 0, 0);
+    const fechaCreacion = config.fechaCreacion || fechaFuente;
     const fuente = {
       getLastUpdated: () => fechaFuente,
+      getDateCreated: () => fechaCreacion,
       getName: () => config.nombreArchivo || "ConsolidadoPorTarea.csv"
     };
 
     try {
       ConsolidadoUpdateService._archivoMasReciente = () => fuente;
-      ConsolidadoUpdateService._leerControl = () => config.control || { marcaFuente: 0, fechaProceso: null, archivo: "" };
+      ConsolidadoUpdateService._leerControl = () => config.control || { marcaFuente: 0, fechaProceso: null, fechaDatos: null, archivo: "" };
       ConsolidadoUpdateService._rawValida = () => !!config.rawValida;
       ConsolidadoUpdateService._importarFuente = () => { importaciones++; };
       ConsolidadoUpdateService._guardarControl = info => { guardado = info; };
@@ -70,7 +72,7 @@ function QA_ConsolidadoUpdate() {
     })
   );
 
-  q.caso("QA-C03", "Misma fuente y RAW válida no reprocesa", "Debe conservar la base y la fecha de procesamiento anterior.", () => {
+  q.caso("QA-C03", "Misma fuente y RAW válida no reprocesa", "Debe conservar la base y mostrar la fecha real de la fuente, no la hora de ejecución.", () => {
     const fechaFuente = new Date(2026, 8, 5, 9, 0, 0);
     const fechaProceso = new Date(2026, 8, 5, 9, 5, 0);
     return conDobles({
@@ -82,7 +84,7 @@ function QA_ConsolidadoUpdate() {
       QA_Assert.igual(r.actualizado, false);
       QA_Assert.igual(r.motivo, "SIN_CAMBIOS");
       QA_Assert.igual(x.importaciones(), 0);
-      QA_Assert.igual(r.fechaDatos.getTime(), fechaProceso.getTime());
+      QA_Assert.igual(r.fechaDatos.getTime(), fechaFuente.getTime());
       return r.motivo;
     });
   });
@@ -109,7 +111,8 @@ function QA_ConsolidadoUpdate() {
       QA_Assert.igual(g.archivo, "ConsolidadoPorTarea.csv");
       QA_Assert.igual(g.marcaFuente, x.fechaFuente.getTime());
       QA_Assert.ok(g.fechaProceso instanceof Date);
-      return { archivo: g.archivo, marcaFuente: g.marcaFuente };
+      QA_Assert.igual(g.fechaDatos.getTime(), x.fechaFuente.getTime());
+      return { archivo: g.archivo, marcaFuente: g.marcaFuente, fechaDatos: g.fechaDatos };
     })
   );
 
@@ -127,6 +130,56 @@ function QA_ConsolidadoUpdate() {
       QA_Assert.igual(x.importaciones(), 0);
       QA_Assert.igual(x.reconstruccionesCache(), 1);
       return r.motivo;
+    });
+  });
+
+  q.caso("QA-C07", "Reconstruir cache no altera la fecha visible de los datos", "Con la misma fuente, la fecha visible debe ser getLastUpdated del archivo aunque el script corra otro día.", () => {
+    const fechaFuente = new Date(2026, 8, 4, 18, 30, 0);
+    const fechaProcesoPosterior = new Date(2026, 8, 5, 13, 40, 0);
+    return conDobles({
+      rawValida: true,
+      cacheValido: false,
+      fechaFuente,
+      control: { marcaFuente: fechaFuente.getTime(), fechaProceso: fechaProcesoPosterior, fechaDatos: null, archivo: "actual.csv" }
+    }, x => {
+      const r = ConsolidadoUpdateService.actualizarSiCorresponde();
+      QA_Assert.igual(r.motivo, "CACHE_RECONSTRUIDA");
+      QA_Assert.igual(r.fechaDatos.getTime(), fechaFuente.getTime());
+      QA_Assert.igual(x.importaciones(), 0);
+      const g = x.guardado();
+      QA_Assert.ok(!!g);
+      QA_Assert.igual(g.fechaDatos.getTime(), fechaFuente.getTime());
+      QA_Assert.igual(g.fechaProceso.getTime(), fechaProcesoPosterior.getTime());
+      return { fechaFuente, fechaProcesoPosterior, fechaVisible: r.fechaDatos };
+    });
+  });
+
+
+  q.caso("QA-C08", "Corrige fecha productiva contaminada por ejecución técnica", "Si el archivo fue cargado ayer pero su metadata técnica se modificó hoy, debe mostrar la fecha de creación/carga del archivo.", () => {
+    const fechaCargaReal = new Date(2026, 8, 4, 18, 30, 0);
+    const fechaModificacionTecnica = new Date(2026, 8, 5, 13, 40, 0);
+    const fechaContaminada = new Date(2026, 8, 5, 13, 40, 0);
+    return conDobles({
+      rawValida: true,
+      cacheValido: true,
+      fechaFuente: fechaModificacionTecnica,
+      fechaCreacion: fechaCargaReal,
+      control: {
+        marcaFuente: fechaModificacionTecnica.getTime(),
+        fechaProceso: fechaContaminada,
+        fechaDatos: fechaContaminada,
+        archivo: "ConsolidadoPorTarea (28).csv"
+      }
+    }, x => {
+      const r = ConsolidadoUpdateService.actualizarSiCorresponde();
+      QA_Assert.igual(r.actualizado, false);
+      QA_Assert.igual(r.motivo, "SIN_CAMBIOS");
+      QA_Assert.igual(r.fechaDatos.getTime(), fechaCargaReal.getTime());
+      const g = x.guardado();
+      QA_Assert.ok(!!g);
+      QA_Assert.igual(g.fechaDatos.getTime(), fechaCargaReal.getTime());
+      QA_Assert.igual(g.fechaProceso.getTime(), fechaContaminada.getTime());
+      return { fechaCargaReal, fechaModificacionTecnica, fechaVisible: r.fechaDatos };
     });
   });
 
