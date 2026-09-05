@@ -24,6 +24,20 @@ function setupSprint1() {
     DataSourceSheets.asegurarHoja(nombre, Config.HEADERS[k]);
   });
 
+  const hRoles = DataSourceSheets.obtenerHoja(Config.HOJAS.ROLES);
+  if (hRoles.getLastRow() < 2) {
+    hRoles.getRange(2, 1, 8, 4).setValues([
+      [Config.ROLES.SUPERVISOR, "Supervisor", Config.ACTIVO.SI, "SUP"],
+      [Config.ROLES.GERENTE, "Gerente", Config.ACTIVO.SI, "GER"],
+      [Config.ROLES.DIRECTOR, "Director", Config.ACTIVO.SI, "DIR"],
+      [Config.ROLES.ADMINISTRADOR, "Administrador", Config.ACTIVO.NO, "ADM"],
+      [Config.ROLES.ADMINISTRATIVO_CONTRATISTA, "Administrativo Contratista", Config.ACTIVO.SI, "ADC"],
+      [Config.ROLES.ANALISTA_DESPACHO, "Analista Despacho", Config.ACTIVO.SI, "ADE"],
+      [Config.ROLES.SUPERVISORES_OBRA_TLC, "Supervisor Obra TLC", Config.ACTIVO.SI, "SOT"],
+      [Config.ROLES.JEFE_OBRA_, "Jefe de Obra", Config.ACTIVO.SI, "JOB"]
+    ]);
+  }
+
   DataSourceSheets.formatearColumnaTexto(Config.HOJAS.USUARIOS, 1);
   DataSourceSheets.formatearColumnaTexto(Config.HOJAS.USUARIOS, 6);
   DataSourceSheets.formatearColumnaTexto(Config.HOJAS.SESIONES_TELEGRAM, 1);

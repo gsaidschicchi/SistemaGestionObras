@@ -1,5 +1,14 @@
 // ======================================================
 // QA_IMPRIMIR.JS
-// Presenta el resumen de ejecución de QA.
+// Presenta resumen detallado de ejecución QA.
 // ======================================================
-function QA_imprimir(r){Logger.log(`${r.grupo}: ${r.ok}/${r.total} OK - Fallas: ${r.fallas}`);r.detalle.filter(x=>!x.ok).forEach(x=>Logger.log(`❌ ${x.id} ${x.nombre}: ${x.error}`));return r;}
+function QA_imprimir(r){
+  Logger.log("##################################################");
+  Logger.log(`RESUMEN DE EJECUCIÓN: ${r.grupo}`);
+  Logger.log(`Total tests: ${r.total}`);
+  Logger.log(`PASS: ${r.ok}`);
+  Logger.log(`NO PASS: ${r.fallas}`);
+  Logger.log(`RESULTADO GENERAL: ${r.fallas===0?"PASS":"NO PASS"}`);
+  Logger.log("##################################################");
+  return r;
+}

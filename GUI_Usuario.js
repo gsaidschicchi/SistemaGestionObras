@@ -101,17 +101,18 @@ class GUI_Usuario {
       return TelegramService.enviarMensaje(
         chatId,
         "Seleccioná el <b>rol solicitado</b>:",
-        TelegramService.teclado([["Supervisor"], ["Gerente"], ["Director"], ["Cancelar"]])
+        this._tecladoRoles()
       );
     }
 
     if (estado === "ALTA_ROL") {
-      const rol = this._rolDesdeTexto(texto);
+      const rolCfg = BLL_Usuario.obtenerRolSolicitablePorTexto(texto);
+      const rol = rolCfg ? rolCfg.Rol : null;
       if (!rol) {
         return TelegramService.enviarMensaje(
           chatId,
           "Seleccioná uno de los roles disponibles.",
-          TelegramService.teclado([["Supervisor"], ["Gerente"], ["Director"], ["Cancelar"]])
+          this._tecladoRoles()
         );
       }
       contexto.rol = rol;
@@ -175,12 +176,10 @@ class GUI_Usuario {
     return valor;
   }
 
-  static _rolDesdeTexto(texto) {
-    const t = this._normalizar(texto);
-    if (t === "SUPERVISOR") return Config.ROLES.SUPERVISOR;
-    if (t === "GERENTE") return Config.ROLES.GERENTE;
-    if (t === "DIRECTOR") return Config.ROLES.DIRECTOR;
-    return null;
+  static _tecladoRoles() {
+    const botones = BLL_Usuario.obtenerRolesPublicos().map(r => [r.Descripcion || r.Rol]);
+    botones.push(["Cancelar"]);
+    return TelegramService.teclado(botones);
   }
 
   static _esDarDeAlta(texto) { return this._normalizar(texto) === "DAR DE ALTA"; }
